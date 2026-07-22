@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -70,7 +70,7 @@ export default function Scan() {
           setIsProcessing(true);
           try {
             const token = localStorage.getItem("token");
-            const res = await fetch("http://localhost:5000/api/scan", {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/scan`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

@@ -43,7 +43,7 @@ export default function Beranda({ user }) {
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/dashboard/summary', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/summary`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -132,7 +132,7 @@ export default function Beranda({ user }) {
                   <div className="pinjaman-info flex items-center gap-3 min-w-0">
                     <div className="pinjaman-img w-12 h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0">
                       {item.gambar
-                        ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `http://localhost:5000${item.gambar}`} alt={item.nama_barang} />
+                        ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
                         : <IconBox />
                       }
                     </div>

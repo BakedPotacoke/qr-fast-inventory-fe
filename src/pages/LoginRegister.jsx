@@ -109,7 +109,7 @@ export default function LoginRegister({ onLoginSuccess }) {
     setServerError('');
 
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const endpoint = mode === 'login' ? `${import.meta.env.VITE_API_URL}/api/auth/login` : `${import.meta.env.VITE_API_URL}/api/auth/register`;
       const body = mode === 'login'
         ? { email: form.email, password: form.password }
         : { nama_lengkap: form.nama_lengkap.trim(), email: form.email, password: form.password };

@@ -97,7 +97,7 @@ function BarangCard({ item, onClick, isEditMode, isSelected, onToggleSelect }) {
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
         {item.gambar ? (
           <img
-            src={item.gambar.startsWith('http') ? item.gambar : `http://localhost:5000${item.gambar}`}
+            src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
             alt={item.nama}
             className="h-full w-full object-cover"
           />
@@ -170,7 +170,7 @@ function DetailModal({ item, onClose }) {
         <div className="relative mx-5 mt-5 h-56 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
           {item.gambar ? (
             <img
-              src={item.gambar.startsWith('http') ? item.gambar : `http://localhost:5000${item.gambar}`}
+              src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
               alt={item.nama}
               className="h-full w-full object-cover"
             />
@@ -463,7 +463,7 @@ function TambahModal({ onClose, onSave }) {
         formData.append('gambar', gambarFile);
       }
 
-      const response = await fetch('http://localhost:5000/api/items', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -700,7 +700,7 @@ function UpdateModal({ item, onClose, onSave }) {
         formData.append('remove_gambar', 'true');
       }
 
-      const response = await fetch(`http://localhost:5000/api/items/${item.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items/${item.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -803,7 +803,7 @@ function UpdateModal({ item, onClose, onSave }) {
             >
               {preview ? (
                 <img
-                  src={preview.startsWith('http') || preview.startsWith('blob:') ? preview : `http://localhost:5000${preview}`}
+                  src={preview.startsWith('http') || preview.startsWith('blob:') ? preview : `${import.meta.env.VITE_API_URL}${preview}`}
                   alt="Preview"
                   className="h-full w-full object-cover"
                 />
@@ -890,7 +890,7 @@ export default function Inventaris({ user }) {
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/items', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -920,7 +920,7 @@ export default function Inventaris({ user }) {
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/items', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

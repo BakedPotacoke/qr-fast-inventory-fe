@@ -133,7 +133,7 @@ function EditProfileModal({ user, onClose, onSaved }) {
     setSuccess('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/users/profile', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

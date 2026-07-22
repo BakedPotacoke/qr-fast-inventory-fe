@@ -132,7 +132,7 @@ function UserFormModal({ mode, initialUser, onClose, onSaved }) {
     setServerError('');
     try {
       const token = localStorage.getItem('token');
-      const endpoint = isEdit ? `/api/users/${initialUser.id}` : '/api/users';
+      const endpoint = isEdit ? `${import.meta.env.VITE_API_URL}/api/users/${initialUser.id}` : `${import.meta.env.VITE_API_URL}/api/users`;
       const method = isEdit ? 'PUT' : 'POST';
 
       const body = {
@@ -358,7 +358,7 @@ function DeleteConfirmModal({ targetUser, onClose, onConfirmed }) {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/users/${targetUser.id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users/${targetUser.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -477,7 +477,7 @@ export default function UserManagement({ currentUser }) {
     setLoadError('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/users', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const result = await res.json();
