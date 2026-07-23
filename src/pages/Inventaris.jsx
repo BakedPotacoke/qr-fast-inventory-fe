@@ -652,7 +652,15 @@ function UpdateModal({ item, onClose, onSave }) {
   const [removeGambar, setRemoveGambar] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const fileRef = useRef();
+
+  // Auto-fill kolom SKU dari hasil scan QR/Barcode
+  const handleScanDetected = (decodedText) => {
+    setForm((f) => ({ ...f, sku: decodedText }));
+    setErrors((er) => ({ ...er, sku: '' }));
+    setShowScanner(false);
+  };
 
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -772,13 +780,23 @@ function UpdateModal({ item, onClose, onSave }) {
 
           <div>
             <label className={fieldLabelClass}>Stock Keeping Unit</label>
-            <input
-              className={getInputClass(errors.sku)}
-              type="text"
-              value={form.sku}
-              onChange={handleChange('sku')}
-              autoComplete="off"
-            />
+            <div className="flex items-stretch gap-2">
+              <input
+                className={`flex-1 ${getInputClass(errors.sku)}`}
+                type="text"
+                value={form.sku}
+                onChange={handleChange('sku')}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowScanner(true)}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition hover:border-[#14a2ba] hover:text-[#14a2ba]"
+              >
+                <HugeiconsIcon icon={BarCode01Icon} size={16} strokeWidth={2} />
+                Scan
+              </button>
+            </div>
             {errors.sku && <span className="mt-1 block text-xs text-red-500">{errors.sku}</span>}
           </div>
 
@@ -852,6 +870,15 @@ function UpdateModal({ item, onClose, onSave }) {
           </div>
         </form>
       </div>
+
+      {showScanner && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <SkuScannerModal
+            onClose={() => setShowScanner(false)}
+            onDetected={handleScanDetected}
+          />
+        </div>
+      )}
     </div>
   );
 }
