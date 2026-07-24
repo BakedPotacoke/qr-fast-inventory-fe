@@ -198,16 +198,17 @@ function DetailModal({ item, onClose }) {
           <HugeiconsIcon icon={Cancel01Icon} size={18} strokeWidth={2.5} />
         </button>
 
-        {/* Thumbnail large */}
-        <div className="relative mx-5 mt-5 h-56 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+        {/* Thumbnail large — tinggi mengikuti rasio asli gambar */}
+        <div className="relative mx-5 mt-5 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
           {item.gambar ? (
             <img
               src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
               alt={item.nama}
-              className="h-full w-full object-cover"
+              className="block w-full object-contain"
+              style={{ maxHeight: '70vh' }}
             />
           ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-400">
+            <div className="flex h-40 w-full flex-col items-center justify-center gap-2 text-slate-400">
               <HugeiconsIcon icon={PackageIcon} size={32} strokeWidth={1.5} />
               <span className="text-sm font-medium">{item.kategori}</span>
             </div>
