@@ -50,11 +50,44 @@ const STATUS_CONFIG = {
     textColor: '#b45309',
     borderColor: '#fde68a',
   },
+  rusak: {
+    label: 'Rusak',
+    dotColor: '#dc2626',
+    bgColor: '#fef2f2',
+    textColor: '#b91c1c',
+    borderColor: '#fecaca',
+  },
+  hilang: {
+    label: 'Hilang',
+    dotColor: '#64748b',
+    bgColor: '#f8fafc',
+    textColor: '#475569',
+    borderColor: '#e2e8f0',
+  },
 };
+
+// Fallback aman kalau suatu saat ada nilai status yang belum terdaftar di STATUS_CONFIG
+// (mis. data lama/korup) — mencegah halaman crash total, cukup tampil sebagai "Tidak diketahui".
+const FALLBACK_STATUS = {
+  label: 'Tidak diketahui',
+  dotColor: '#94a3b8',
+  bgColor: '#f1f5f9',
+  textColor: '#475569',
+  borderColor: '#e2e8f0',
+};
+
+function getStatusConfig(status) {
+  return STATUS_CONFIG[status] || FALLBACK_STATUS;
+}
+
+// Status yang boleh diset manual lewat form Update Barang. "dipinjam" sengaja
+// tidak dimasukkan karena status itu hanya boleh berubah lewat alur scan
+// (supaya data di tabel transactions tetap konsisten dengan status barang).
+const EDITABLE_STATUSES = ['tersedia', 'rusak', 'hilang'];
 
 // ===== ITEM CARD =====
 function BarangCard({ item, onClick, isEditMode, isSelected, onToggleSelect }) {
-  const status = STATUS_CONFIG[item.status];
+  const status = getStatusConfig(item.status);
   const isBorrowed = item.status === 'dipinjam';
 
   const handleClick = () => {
@@ -67,11 +100,10 @@ function BarangCard({ item, onClick, isEditMode, isSelected, onToggleSelect }) {
 
   return (
     <button
-      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
-        isSelected
+      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${isSelected
           ? 'ring-2'
           : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm'
-      } ${isEditMode && isBorrowed ? 'opacity-50' : ''}`}
+        } ${isEditMode && isBorrowed ? 'opacity-50' : ''}`}
       style={
         isSelected
           ? { borderColor: BRAND, backgroundColor: BRAND_SOFT, boxShadow: `0 0 0 1px ${BRAND}` }
@@ -142,7 +174,7 @@ function BarangCard({ item, onClick, isEditMode, isSelected, onToggleSelect }) {
 // ===== DETAIL MODAL =====
 function DetailModal({ item, onClose }) {
   if (!item) return null;
-  const status = STATUS_CONFIG[item.status];
+  const status = getStatusConfig(item.status);
 
   return (
     <div
@@ -277,11 +309,10 @@ const fieldInputClass =
   'w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-2';
 
 function getInputClass(hasError) {
-  return `${fieldInputClass} ${
-    hasError
+  return `${fieldInputClass} ${hasError
       ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
       : 'border-slate-200 focus:border-[#14a2ba] focus:ring-[#14a2ba]/15'
-  }`;
+    }`;
 }
 
 // ===== SCANNER (QR & Barcode) UNTUK INPUT SKU =====
@@ -351,7 +382,7 @@ function SkuScannerModal({ onClose, onDetected }) {
         try {
           const state = scanner.getState();
           if (state === 2) {
-            scanner.stop().catch(() => {});
+            scanner.stop().catch(() => { });
           }
         } catch (_) { /* scanner belum siap / sudah berhenti */ }
       }
@@ -646,7 +677,7 @@ function TambahModal({ onClose, onSave }) {
 
 // ===== UPDATE BARANG MODAL =====
 function UpdateModal({ item, onClose, onSave }) {
-  const [form, setForm] = useState({ nama: item.nama, sku: item.sku, kategori: item.kategori });
+  const [form, setForm] = useState({ nama: item.nama, sku: item.sku, kategori: item.kategori, status: item.status });
   const [gambarFile, setGambarFile] = useState(null);
   const [preview, setPreview] = useState(item.gambar || null);
   const [removeGambar, setRemoveGambar] = useState(false);
@@ -702,6 +733,12 @@ function UpdateModal({ item, onClose, onSave }) {
       formData.append('qr_code', form.sku.trim().toUpperCase());
       formData.append('kategori', form.kategori.trim());
 
+      // Status hanya dikirim kalau barang tidak sedang dipinjam — mencegah
+      // perubahan tidak sengaja pada barang yang statusnya dikontrol via scan.
+      if (item.status !== 'dipinjam') {
+        formData.append('status', form.status);
+      }
+
       if (gambarFile) {
         formData.append('gambar', gambarFile);
       } else if (removeGambar) {
@@ -726,6 +763,7 @@ function UpdateModal({ item, onClose, onSave }) {
         nama: data.data.nama_barang || item.nama,
         sku: data.data.qr_code || item.sku,
         kategori: data.data.kategori || item.kategori,
+        status: data.data.status || item.status,
       };
 
       if (data.data.gambar_url !== undefined) {
@@ -810,6 +848,25 @@ function UpdateModal({ item, onClose, onSave }) {
               autoComplete="off"
             />
             {errors.kategori && <span className="mt-1 block text-xs text-red-500">{errors.kategori}</span>}
+          </div>
+
+          <div>
+            <label className={fieldLabelClass}>Status Barang</label>
+            {item.status === 'dipinjam' ? (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-500">
+                Barang sedang dipinjam. Status hanya bisa diubah lewat proses scan pengembalian.
+              </p>
+            ) : (
+              <select
+                className={getInputClass(false)}
+                value={form.status}
+                onChange={handleChange('status')}
+              >
+                {EDITABLE_STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -1013,6 +1070,16 @@ export default function Inventaris({ user }) {
       label: 'Dipinjam',
       count: barangList.filter((b) => b.status === 'dipinjam').length,
     },
+    {
+      key: 'rusak',
+      label: 'Rusak',
+      count: barangList.filter((b) => b.status === 'rusak').length,
+    },
+    {
+      key: 'hilang',
+      label: 'Hilang',
+      count: barangList.filter((b) => b.status === 'hilang').length,
+    },
   ];
 
   const filteredBarang = useMemo(() => {
@@ -1212,21 +1279,21 @@ export default function Inventaris({ user }) {
       )}
 
       {/* ===== FLOATING ACTION BUTTON ===== */}
-{isAdmin && !isEditMode && (
-  <div className="pointer-events-none fixed inset-x-0 bottom-24 z-20 flex justify-center">
-    <div className="flex w-full max-w-2xl justify-end px-6">
-      <button
-        className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition hover:brightness-95 active:scale-95"
-        style={{ backgroundColor: BRAND, boxShadow: `0 10px 25px -5px ${BRAND}66` }}
-        onClick={() => setShowTambah(true)}
-        type="button"
-        aria-label="Tambah Barang"
-      >
-        <HugeiconsIcon icon={Add01Icon} size={24} strokeWidth={2.5} />
-      </button>
-    </div>
-  </div>
-)}
+      {isAdmin && !isEditMode && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-20 flex justify-center">
+          <div className="flex w-full max-w-2xl justify-end px-6">
+            <button
+              className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition hover:brightness-95 active:scale-95"
+              style={{ backgroundColor: BRAND, boxShadow: `0 10px 25px -5px ${BRAND}66` }}
+              onClick={() => setShowTambah(true)}
+              type="button"
+              aria-label="Tambah Barang"
+            >
+              <HugeiconsIcon icon={Add01Icon} size={24} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
