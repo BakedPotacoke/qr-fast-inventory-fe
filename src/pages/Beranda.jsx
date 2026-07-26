@@ -8,6 +8,8 @@ import {
   Alert01Icon,
   Cancel01Icon,
 } from '@hugeicons/core-free-icons';
+import headerBg from '../assets/header-bg.webp';
+import GagalMuatData from '../components/GagalMuatData';
 
 // ===== HELPER =====
 function getSapaan() {
@@ -188,14 +190,24 @@ export default function Beranda({ user }) {
 
   return (
     <>
-      {/* ===== HEADER ===== */}
-      <div className="main-header px-5 pt-6 pb-4">
-        <div className="main-header-top flex items-center justify-between">
+      {/* ===== HEADER (banner ilustrasi) ===== */}
+      <div className="main-header relative h-28 overflow-hidden mb-5">
+        <img
+          src={headerBg}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: '80% 45%' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/5 to-black/10" />
+
+        <div className="relative z-10 flex h-full flex-col justify-end px-5 py-4">
           <div className="main-header-user flex items-center gap-3">
-            <AvatarIcon nama={user.nama_lengkap} />
+            <div className="rounded-full ring-2 ring-white/50">
+              <AvatarIcon nama={user.nama_lengkap} />
+            </div>
             <div>
-              <p className="main-greeting text-xs text-slate-500">{sapaan},</p>
-              <p className="main-username text-base font-semibold text-slate-900">{user.nama_lengkap}</p>
+              <p className="main-greeting text-base font-semibold text-white">{sapaan},</p>
+              <p className="main-username text-base font-semibold text-white">{user.nama_lengkap}</p>
             </div>
           </div>
         </div>
@@ -237,16 +249,7 @@ export default function Beranda({ user }) {
             {loading ? (
               <div className="loading-skeleton-card h-20 w-full rounded-xl bg-slate-100 animate-pulse" />
             ) : error ? (
-              <div className="error-state flex flex-col items-center gap-2 p-5 rounded-xl bg-red-50 border border-red-200 text-center">
-                <p className="error-text text-sm text-red-700">Gagal memuat data</p>
-                <button
-                  className="error-retry-btn text-xs font-semibold text-red-700 bg-white border border-red-300 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
-                  onClick={fetchDashboardData}
-                  type="button"
-                >
-                  Coba lagi
-                </button>
-              </div>
+              <GagalMuatData onRetry={fetchDashboardData} />
             ) : dashboardData.pinjaman.length === 0 ? (
               <p className="pinjaman-empty text-sm text-slate-500 text-center p-5 rounded-xl">
                 Kamu tidak sedang meminjam barang apapun.

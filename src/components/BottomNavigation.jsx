@@ -21,7 +21,7 @@ const navItemClass = ({ isActive }) =>
   }`;
 
 // ===== MAIN COMPONENT =====
-export default function DashboardLayout({ user, onLogout }) {
+export default function BottomNavigation({ user, onLogout }) {
   const navigate = useNavigate();
 
   return (

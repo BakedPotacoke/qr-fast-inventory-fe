@@ -11,8 +11,8 @@ import {
   BarCode01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Alert01Icon,
 } from '@hugeicons/core-free-icons';
+import GagalMuatData from '../components/GagalMuatData';
 
 // ===== STATUS CONFIG =====
 // "dipinjam" dipetakan ke warna brand (#14a2ba) karena itu status aktif/utama,
@@ -394,17 +394,7 @@ export default function Riwayat({ user }) {
               <div className="h-[140px] animate-pulse rounded-3xl bg-slate-100" />
             </>
           ) : error ? (
-            <div className="flex flex-col items-center gap-3 rounded-3xl border border-red-100 bg-red-50 px-6 py-10 text-center">
-              <HugeiconsIcon icon={Alert01Icon} size={28} strokeWidth={2} className="text-red-500" />
-              <p className="text-sm font-medium text-red-600">{error}</p>
-              <button
-                type="button"
-                onClick={fetchRiwayat}
-                className="mt-1 rounded-full bg-[#14a2ba] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0f7e91]"
-              >
-                Coba lagi
-              </button>
-            </div>
+            <GagalMuatData onRetry={fetchRiwayat} />
           ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">

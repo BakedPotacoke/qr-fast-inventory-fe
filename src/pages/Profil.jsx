@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowRight01Icon,
-  Package01Icon,
+  Package02Icon,
   HistoryIcon,
-  QrCodeIcon,
+  QrCode01Icon,
   Notification03Icon,
   HelpCircleIcon,
   Logout01Icon,
@@ -361,7 +361,7 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
           <p className="mb-2 px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">Aktivitas</p>
           <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
             <MenuItem
-              icon={<HugeiconsIcon icon={Package01Icon} size={18} strokeWidth={2} />}
+              icon={<HugeiconsIcon icon={Package02Icon} size={18} strokeWidth={2} />}
               label="Inventaris Barang"
               onClick={() => navigate('/inventaris')}
             />
@@ -371,7 +371,7 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
               onClick={() => navigate('/riwayat')}
             />
             <MenuItem
-              icon={<HugeiconsIcon icon={QrCodeIcon} size={18} strokeWidth={2} />}
+              icon={<HugeiconsIcon icon={QrCode01Icon} size={18} strokeWidth={2} />}
               label="Scan QR Code"
               onClick={() => navigate('/scan')}
             />

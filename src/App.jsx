@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LoginRegister from './pages/LoginRegister';
-import DashboardLayout from './pages/DashboardLayout';
+import BottomNavigation from './components/BottomNavigation';
 import Beranda from './pages/Beranda';
 import Inventaris from './pages/Inventaris';
 import Riwayat from './pages/Riwayat';
 import Profil from './pages/Profil';
 import Scan from './pages/Scan';
-import UserManagement from './pages/UserManagement';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminInventaris from './pages/admin/Inventaris';
+import AdminRiwayat from './pages/admin/Riwayat';
+import AdminUserManagement from './pages/admin/UserManagement';
 import './App.css';
 
 // Membungkus route yang WAJIB login. Jika belum login, lempar ke /login.
@@ -79,7 +83,7 @@ function App() {
   const handleLoginSuccess = (userData) => {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
-    navigate('/', { replace: true });
+    navigate(userData.role === 'admin' ? '/admin' : '/', { replace: true });
   };
 
   const handleLogout = () => {
@@ -121,27 +125,36 @@ function App() {
         path="/"
         element={
           <ProtectedRoute user={user}>
-            <DashboardLayout user={user} onLogout={handleLogout} />
+            <BottomNavigation user={user} onLogout={handleLogout} />
           </ProtectedRoute>
         }
       >
-
-        <Route
-        path="usermanagement"
-        element={
-            <AdminRoute user={user}>
-            <UserManagement currentUser={user} />
-          </AdminRoute>
-          }
-        />
         <Route index element={<Beranda user={user} />} />
         <Route path="inventaris" element={<Inventaris user={user} />} />
         <Route path="riwayat" element={<Riwayat user={user} />} />
         <Route path="profil" element={<Profil user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />} />
       </Route>
 
+      {/* ===== ADMIN CONTROL PANEL (layout & sidebar terpisah) ===== */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute user={user}>
+            <AdminLayout user={user} onLogout={handleLogout} />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="inventaris" element={<AdminInventaris />} />
+        <Route path="riwayat" element={<AdminRiwayat />} />
+        <Route path="users" element={<AdminUserManagement currentUser={user} />} />
+      </Route>
+
       {/* ===== FALLBACK ===== */}
-      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={user ? (user.role === 'admin' ? '/admin' : '/') : '/login'} replace />}
+      />
     </Routes>
   );
 }
