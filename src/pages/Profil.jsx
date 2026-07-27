@@ -386,7 +386,7 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
               <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
                 <MenuItem
                   icon={<HugeiconsIcon icon={UserGroupIcon} size={18} strokeWidth={2} />}
-                  label="Kelola Pengguna"
+                  label="Admin Panel"
                   onClick={() => navigate('/usermanagement')}
                 />
               </div>

@@ -269,10 +269,7 @@ export default function Beranda({ user }) {
                     </div>
                     <div className="min-w-0">
                       <p className="pinjaman-nama text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>
-                      <p className="pinjaman-kode text-xs text-slate-500 truncate">{item.kode} {item.kategori}</p>
-                      <span className="pinjaman-status inline-flex items-center gap-1.5 text-xs text-[#0b6577] mt-1">
-                        <span className="status-dot w-1.5 h-1.5 rounded-full bg-[#14a2ba]" /> {item.status}
-                      </span>
+                      <p className="pinjaman-kode text-xs text-slate-500 truncate">{item.kategori}</p>
                     </div>
                   </div>
                   <div className="pinjaman-actions flex items-center gap-2 shrink-0">
