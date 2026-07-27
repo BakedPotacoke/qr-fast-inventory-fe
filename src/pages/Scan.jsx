@@ -8,6 +8,7 @@ import {
   CancelCircleIcon,
   Camera01Icon,
   Alert01Icon,
+  Tick01Icon,
 } from "@hugeicons/core-free-icons";
 
 const SCANNER_ID = "qrfast-scanner-viewport";
@@ -34,110 +35,264 @@ const ALL_SUPPORTED_FORMATS = [
   Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
 ];
 
-// ===== MODAL KONFIRMASI KONDISI BARANG (saat pengembalian) =====
-function KondisiKonfirmasiModal({ confirmState, onCancel, onSubmit, submitting, submitError }) {
-  const [kondisi, setKondisi] = useState(null); // 'baik' | 'rusak'
+// ===== Utility: overlay timestamp ke foto via Canvas =====
+async function overlayTimestampToBlob(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      // Timestamp teks
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const ts = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+      const fontSize = Math.max(14, Math.round(canvas.width * 0.025));
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+
+      // Shadow supaya terbaca di background apapun
+      const padding = Math.round(fontSize * 0.6);
+      const x = canvas.width - padding;
+      const y = canvas.height - padding;
+
+      ctx.shadowColor = "rgba(0,0,0,0.85)";
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(ts, x, y);
+      ctx.shadowBlur = 0;
+
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Canvas toBlob gagal"));
+      }, "image/jpeg", 0.92);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// ===== MODAL FORM PENGEMBALIAN BARANG (menggantikan KondisiKonfirmasiModal) =====
+function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, submitError }) {
+  const [isRusak, setIsRusak] = useState(false);
   const [keterangan, setKeterangan] = useState("");
+  const [fotoFile, setFotoFile] = useState(null);   // File original dari input
+  const [fotoPreview, setFotoPreview] = useState(null); // Object URL untuk preview
+  const fotoInputRef = useRef(null);
 
-  const handlePilihBaik = () => {
-    setKondisi("baik");
-    onSubmit({ kondisi: "baik", keterangan: "" });
+  // Bersihkan object URL saat komponen unmount
+  useEffect(() => {
+    return () => {
+      if (fotoPreview) URL.revokeObjectURL(fotoPreview);
+    };
+  }, [fotoPreview]);
+
+  const handleFotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview);
+    setFotoFile(file);
+    setFotoPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmitRusak = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!keterangan.trim()) return;
-    onSubmit({ kondisi: "rusak", keterangan: keterangan.trim() });
+    if (!fotoFile) return;
+    if (isRusak && !keterangan.trim()) return;
+    onSubmit({
+      kondisi: isRusak ? "rusak" : "baik",
+      keterangan: isRusak ? keterangan.trim() : "",
+      fotoFile,
+    });
   };
+
+  const canSubmit = fotoFile && (!isRusak || keterangan.trim());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="w-full rounded-t-3xl bg-white p-6 sm:max-w-sm sm:rounded-3xl">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#14a2ba]/10 text-[#14a2ba]">
-          <HugeiconsIcon icon={Alert01Icon} size={32} strokeWidth={1.5} />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="w-full max-h-[92dvh] overflow-y-auto rounded-t-3xl bg-white sm:max-w-sm sm:rounded-3xl">
+        {/* Header */}
+        <div className="sticky top-0 z-10 rounded-t-3xl bg-white px-6 pt-5 pb-3 sm:rounded-3xl">
+          <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-base font-bold text-slate-900 leading-tight">
+                {confirmState.barang?.nama_barang}
+              </p>
+              {confirmState.durasi_pinjam && (
+                <p className="text-xs text-slate-400 mt-0.5">Dipinjam selama {confirmState.durasi_pinjam}</p>
+              )}
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#14a2ba]/10 text-[#14a2ba] flex-shrink-0 ml-3">
+              <HugeiconsIcon icon={Alert01Icon} size={20} strokeWidth={1.5} />
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">Isi form berikut untuk menyelesaikan pengembalian.</p>
         </div>
-        <p className="mt-4 text-center text-base font-bold text-slate-900">
-          {confirmState.barang?.nama_barang}
-        </p>
-        <p className="mt-1 text-center text-sm text-slate-500">
-          Sebelum menyelesaikan pengembalian, bagaimana kondisi barang ini?
-        </p>
-        {confirmState.durasi_pinjam && (
-          <p className="mt-1 text-center text-xs text-slate-400">
-            Dipinjam selama {confirmState.durasi_pinjam}
-          </p>
-        )}
 
-        {submitError && (
-          <div className="mt-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-center text-sm text-red-600">
-            {submitError}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-2 space-y-5">
 
-        {kondisi !== "rusak" ? (
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => setKondisi("rusak")}
-              disabled={submitting}
-              className="flex-1 rounded-full border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
-            >
-              Rusak
-            </button>
-            <button
-              type="button"
-              onClick={handlePilihBaik}
-              disabled={submitting}
-              className="flex-1 rounded-full bg-[#14a2ba] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f8298] disabled:opacity-50"
-            >
-              {submitting ? "Memproses..." : "Baik"}
-            </button>
-          </div>
-        ) : (
-          <form className="mt-5" onSubmit={handleSubmitRusak}>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-600" htmlFor="keterangan-rusak">
-              Keterangan kerusakan
-            </label>
-            <textarea
-              id="keterangan-rusak"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
-              rows={3}
-              placeholder="cth. Layar retak di bagian pojok kanan bawah"
-              value={keterangan}
-              onChange={(e) => setKeterangan(e.target.value)}
-              autoFocus
+          {/* ── Error banner ── */}
+          {submitError && (
+            <div className="rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 text-center text-sm text-red-600">
+              {submitError}
+            </div>
+          )}
+
+          {/* ── Checkbox kondisi rusak ── */}
+          <label
+            htmlFor="checkbox-rusak"
+            className={`flex items-start gap-3 rounded-2xl border-2 p-4 cursor-pointer transition-colors ${
+              isRusak
+                ? "border-red-400 bg-red-50"
+                : "border-slate-200 bg-slate-50 hover:border-slate-300"
+            }`}
+          >
+            <div className="relative mt-0.5 flex-shrink-0">
+              <input
+                id="checkbox-rusak"
+                type="checkbox"
+                className="sr-only"
+                checked={isRusak}
+                onChange={(e) => {
+                  setIsRusak(e.target.checked);
+                  if (!e.target.checked) setKeterangan("");
+                }}
+                disabled={submitting}
+              />
+              <div
+                className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
+                  isRusak
+                    ? "border-red-500 bg-red-500"
+                    : "border-slate-300 bg-white"
+                }`}
+              >
+                {isRusak && (
+                  <HugeiconsIcon icon={Tick01Icon} size={12} strokeWidth={2.5} color="white" />
+                )}
+              </div>
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${isRusak ? "text-red-700" : "text-slate-700"}`}>
+                Barang dalam kondisi rusak
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Centang jika ada kerusakan pada barang ini
+              </p>
+            </div>
+          </label>
+
+          {/* ── Textarea keterangan (muncul hanya jika rusak) ── */}
+          {isRusak && (
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600" htmlFor="keterangan-rusak">
+                Keterangan kerusakan <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="keterangan-rusak"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100 disabled:opacity-60"
+                rows={3}
+                placeholder="cth. Layar retak di bagian pojok kanan bawah"
+                value={keterangan}
+                onChange={(e) => setKeterangan(e.target.value)}
+                autoFocus
+                disabled={submitting}
+              />
+            </div>
+          )}
+
+          {/* ── Input foto bukti ── */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-slate-600">
+              Foto bukti kondisi barang <span className="text-red-500">*</span>
+            </p>
+
+            {/* Hidden file input — membuka kamera */}
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              id="input-foto-bukti"
+              onChange={handleFotoChange}
               disabled={submitting}
             />
-            <div className="mt-4 flex gap-3">
+
+            {fotoPreview ? (
+              /* Preview foto setelah diambil */
+              <div className="relative overflow-hidden rounded-2xl bg-slate-100">
+                <img
+                  src={fotoPreview}
+                  alt="Preview foto bukti"
+                  className="w-full max-h-48 object-cover"
+                />
+                {/* Badge timestamp overlay info */}
+                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                  <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                    Timestamp otomatis akan ditambahkan
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={submitting}
+                    className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-700 shadow-sm backdrop-blur-sm hover:bg-white disabled:opacity-50"
+                  >
+                    Ganti foto
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Tombol ambil foto */
               <button
                 type="button"
-                onClick={() => setKondisi(null)}
+                onClick={() => fotoInputRef.current?.click()}
                 disabled={submitting}
-                className="flex-1 rounded-full border border-slate-200 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 py-7 text-slate-500 transition-colors hover:border-[#14a2ba] hover:bg-[#14a2ba]/5 hover:text-[#14a2ba] disabled:opacity-50"
               >
-                Kembali
+                <HugeiconsIcon icon={Camera01Icon} size={28} strokeWidth={1.5} />
+                <span className="text-sm font-semibold">Ambil Foto</span>
+                <span className="text-xs text-slate-400">Kamera akan terbuka untuk preview</span>
               </button>
-              <button
-                type="submit"
-                disabled={submitting || !keterangan.trim()}
-                className="flex-1 rounded-full bg-red-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? "Mengirim..." : "Kirim Laporan"}
-              </button>
-            </div>
-          </form>
-        )}
+            )}
+          </div>
 
-        {kondisi !== "rusak" && (
+          {/* ── Tombol aksi ── */}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={submitting || !canSubmit}
+              className={`flex-1 rounded-full py-3.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                isRusak
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-[#14a2ba] hover:bg-[#0f8298]"
+              }`}
+            >
+              {submitting
+                ? "Memproses..."
+                : isRusak
+                ? "Kirim & Tandai Rusak"
+                : "Selesaikan Pengembalian"}
+            </button>
+          </div>
+
+          {/* ── Link batal ── */}
           <button
             type="button"
             onClick={onCancel}
             disabled={submitting}
-            className="mt-3 w-full text-center text-xs font-semibold text-slate-400 transition-colors hover:text-slate-600 disabled:opacity-50"
+            className="mt-1 w-full text-center text-xs font-semibold text-slate-400 transition-colors hover:text-slate-600 disabled:opacity-50"
           >
             Batal, scan ulang
           </button>
-        )}
+        </form>
       </div>
     </div>
   );
@@ -244,22 +399,34 @@ export default function Scan() {
     await handleScanAgain();
   };
 
-  const handleSubmitKondisi = async ({ kondisi, keterangan }) => {
+  const handleSubmitKondisi = async ({ kondisi, keterangan, fotoFile }) => {
     setConfirmSubmitting(true);
     setConfirmError(null);
     try {
+      // 1. Overlay timestamp ke foto via Canvas
+      let fotoBlob;
+      try {
+        fotoBlob = await overlayTimestampToBlob(fotoFile);
+      } catch {
+        setConfirmError("Gagal memproses foto. Coba ambil foto ulang.");
+        return;
+      }
+
+      // 2. Kirim sebagai multipart/form-data
+      const formData = new FormData();
+      formData.append("transaction_id", confirmState.transaction_id);
+      formData.append("kondisi", kondisi);
+      formData.append("keterangan", keterangan);
+      formData.append("foto", fotoBlob, `bukti_${Date.now()}.jpg`);
+
       const token = localStorage.getItem("token");
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/scan/confirm-return`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          // Jangan set Content-Type manual — browser otomatis set multipart boundary
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          transaction_id: confirmState.transaction_id,
-          kondisi,
-          keterangan,
-        }),
+        body: formData,
       });
       const data = await res.json();
 
@@ -331,9 +498,9 @@ export default function Scan() {
         </div>
       )}
 
-      {/* Modal Konfirmasi Kondisi Barang (sebelum pengembalian difinalisasi) */}
+      {/* Form Pengembalian Barang (menggantikan modal konfirmasi lama) */}
       {confirmState && (
-        <KondisiKonfirmasiModal
+        <PengembalianFormModal
           confirmState={confirmState}
           onCancel={handleCancelConfirm}
           onSubmit={handleSubmitKondisi}

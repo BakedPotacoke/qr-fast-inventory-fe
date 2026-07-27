@@ -6,7 +6,6 @@ import {
   Cancel01Icon,
   HistoryIcon,
   UserIcon,
-  Clock01Icon,
   Calendar03Icon,
   BarCode01Icon,
   ArrowLeft01Icon,
@@ -39,7 +38,7 @@ const STATUS_CONFIG = {
 };
 
 // ===== TRANSACTION CARD =====
-function TransaksiCard({ item, onClick }) {
+function TransaksiCard({ item, onClick, isAdmin }) {
   const status = STATUS_CONFIG[item.status];
 
   return (
@@ -71,16 +70,18 @@ function TransaksiCard({ item, onClick }) {
       <div className="my-4 h-px w-full bg-slate-100" />
 
       {/* Info grid */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Peminjam</span>
-          <span className="text-sm font-semibold text-slate-700">{item.peminjam}</span>
-        </div>
+      <div className={`grid gap-x-4 gap-y-3 ${isAdmin ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
+        {isAdmin && (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Peminjam</span>
+            <span className="text-sm font-semibold text-slate-700">{item.peminjam}</span>
+          </div>
+        )}
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Waktu Pinjam</span>
           <span className="text-sm font-semibold text-slate-700">{item.waktu_pinjam}</span>
         </div>
-        <div className="col-span-2 flex flex-col gap-0.5 sm:col-span-1">
+        <div className={`flex flex-col gap-0.5 ${isAdmin ? 'col-span-2 sm:col-span-1' : ''}`}>
           <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Pengembalian</span>
           <span
             className="text-sm font-bold"
@@ -95,14 +96,14 @@ function TransaksiCard({ item, onClick }) {
 }
 
 // ===== DETAIL MODAL =====
-function DetailModal({ item, onClose }) {
+function DetailModal({ item, onClose, isAdmin }) {
   if (!item) return null;
   const status = STATUS_CONFIG[item.status];
 
-  const rows = [
+  const allRows = [
     { icon: BarCode01Icon, label: 'Stock Keeping Unit', value: item.sku },
-    { icon: UserIcon, label: 'Peminjam', value: item.peminjam },
-    { icon: Clock01Icon, label: 'Waktu Pinjam', value: item.waktu_pinjam },
+    { icon: UserIcon, label: 'Peminjam', value: item.peminjam, adminOnly: true },
+    { icon: Calendar03Icon, label: 'Waktu Pinjam', value: item.waktu_pinjam },
     {
       icon: Calendar03Icon,
       label: 'Waktu Pengembalian',
@@ -110,6 +111,7 @@ function DetailModal({ item, onClose }) {
       color: status.accent,
     },
   ];
+  const rows = allRows.filter((r) => !r.adminOnly || isAdmin);
 
   return (
     <div
@@ -178,7 +180,6 @@ function DetailModal({ item, onClose }) {
 // ===== MAIN COMPONENT =====
 export default function Riwayat({ user }) {
   const [activeFilter, setActiveFilter] = useState('semua');
-  const [toggleMyOnly, setToggleMyOnly] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const [transaksiList, setTransaksiList] = useState([]);
@@ -187,7 +188,6 @@ export default function Riwayat({ user }) {
 
   const [activeMonthIndex, setActiveMonthIndex] = useState(0);
 
-  const currentUserId = user?.id;
   const isAdmin = user?.role === 'admin';
 
   const formatTanggal = (isoString) => {
@@ -284,7 +284,6 @@ export default function Riwayat({ user }) {
   const filteredData = useMemo(() => {
     return transaksiList.filter((item) => {
       const matchFilter = activeFilter === 'semua' || item.status === activeFilter;
-      const matchUser = !toggleMyOnly || item.user_id === currentUserId;
 
       let matchMonth = true;
       if (activeMonthKey && item.raw_waktu_pinjam) {
@@ -293,43 +292,25 @@ export default function Riwayat({ user }) {
         matchMonth = sortKey === activeMonthKey;
       }
 
-      return matchFilter && matchUser && matchMonth;
+      return matchFilter && matchMonth;
     });
-  }, [activeFilter, toggleMyOnly, currentUserId, transaksiList, isAdmin, activeMonthKey]);
+  }, [activeFilter, transaksiList, activeMonthKey]);
 
   return (
     <div className="min-h-screen bg-white [font-family:'Plus_Jakarta_Sans',_sans-serif] antialiased">
       <div className="mx-auto w-full max-w-2xl px-4 pb-10 sm:px-6 lg:max-w-3xl lg:px-8">
         {/* ===== HEADER ===== */}
         <div className="pt-6 pb-5 sm:pt-8">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Riwayat Transaksi</h1>
-          <p className="mt-1 text-sm text-slate-500">Riwayat peminjaman &amp; pengembalian alat kerja</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            {isAdmin ? 'Riwayat Transaksi' : 'Riwayat Peminjaman Saya'}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {isAdmin
+              ? 'Riwayat peminjaman & pengembalian alat kerja'
+              : 'Riwayat peminjaman & pengembalian barang Anda'}
+          </p>
         </div>
 
-        {/* ===== TOGGLE BAR ===== */}
-        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3.5">
-          <div className="flex items-center gap-2 text-slate-700">
-            <span className="text-sm font-semibold">
-              {toggleMyOnly ? 'Transaksi saya' : 'Semua transaksi'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToggleMyOnly((v) => !v)}
-            aria-label="Toggle tampilkan transaksi saya"
-            role="switch"
-            aria-checked={toggleMyOnly}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-              toggleMyOnly ? 'bg-[#14a2ba]' : 'bg-slate-300'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                toggleMyOnly ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
 
         {/* ===== FILTER TABS ===== */}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -401,11 +382,11 @@ export default function Riwayat({ user }) {
                 <HugeiconsIcon icon={HistoryIcon} size={24} strokeWidth={2} />
               </div>
               <p className="text-sm font-bold text-slate-700">Tidak ada riwayat transaksi</p>
-              <span className="text-xs text-slate-400">Coba ubah filter atau toggle</span>
+              <span className="text-xs text-slate-400">Coba ubah filter atau periode bulan</span>
             </div>
           ) : (
             filteredData.map((item) => (
-              <TransaksiCard key={item.id} item={item} onClick={setSelectedItem} />
+              <TransaksiCard key={item.id} item={item} onClick={setSelectedItem} isAdmin={isAdmin} />
             ))
           )}
           <div className="h-16" />
@@ -413,7 +394,7 @@ export default function Riwayat({ user }) {
       </div>
 
       {/* ===== DETAIL MODAL ===== */}
-      {selectedItem && <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} isAdmin={isAdmin} />}
     </div>
   );
 }
