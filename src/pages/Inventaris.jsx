@@ -69,6 +69,28 @@ function getStatusConfig(status) {
   return STATUS_CONFIG[status] || FALLBACK_STATUS;
 }
 
+// ===== ICON: FILTER (inline SVG, tidak bergantung pada paket ikon eksternal) =====
+function FilterIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 6H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 12H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="8" cy="6" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16" cy="12" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="18" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+// ===== OPSI URUTAN =====
+const SORT_OPTIONS = [
+  { key: 'terbaru', label: 'Terbaru Ditambahkan' },
+  { key: 'terlama', label: 'Terlama Ditambahkan' },
+  { key: 'az', label: 'Nama A-Z' },
+  { key: 'za', label: 'Nama Z-A' },
+];
+
 // ===== ITEM CARD (Versi Bersih untuk Pegawai) =====
 function BarangCard({ item, onClick }) {
   const status = getStatusConfig(item.status);
@@ -258,10 +280,136 @@ function DetailModal({ item, onClose }) {
   );
 }
 
-// ===== MAIN COMPONENT =====
+// ===== BOTTOM SHEET: FILTER & URUTKAN =====
+function FilterSortSheet({
+  open,
+  onClose,
+  kategoriOptions,
+  activeKategori,
+  onKategoriChange,
+  sortBy,
+  onSortChange,
+  onReset,
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-[85vh] w-full flex-col overflow-y-auto rounded-t-3xl bg-white pb-6 sm:max-w-md sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle bar */}
+        <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-slate-200 sm:hidden" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5">
+          <h2 className="text-lg font-bold text-slate-900">Filter & Urutkan</h2>
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200"
+            onClick={onClose}
+            type="button"
+            aria-label="Tutup"
+          >
+            <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Urutkan */}
+        <div className="mt-5 px-5">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Urutkan</p>
+          <div className="flex flex-col gap-2">
+            {SORT_OPTIONS.map((opt) => {
+              const active = sortBy === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onSortChange(opt.key)}
+                  className="flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition"
+                  style={
+                    active
+                      ? { borderColor: BRAND, background: BRAND_SOFT, color: BRAND }
+                      : { borderColor: '#e2e8f0', background: '#fff', color: '#334155' }
+                  }
+                >
+                  {opt.label}
+                  {active && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} strokeWidth={2} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Kategori */}
+        <div className="mt-6 px-5">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Kategori</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onKategoriChange('semua')}
+              className="rounded-full border px-4 py-2 text-sm font-medium transition"
+              style={
+                activeKategori === 'semua'
+                  ? { backgroundColor: BRAND, color: '#fff', borderColor: BRAND }
+                  : { backgroundColor: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
+              }
+            >
+              Semua Kategori
+            </button>
+            {kategoriOptions.map((k) => {
+              const active = activeKategori === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => onKategoriChange(k)}
+                  className="rounded-full border px-4 py-2 text-sm font-medium transition"
+                  style={
+                    active
+                      ? { backgroundColor: BRAND, color: '#fff', borderColor: BRAND }
+                      : { backgroundColor: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
+                  }
+                >
+                  {k}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-8 flex gap-3 px-5">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white transition"
+            style={{ backgroundColor: BRAND }}
+          >
+            Terapkan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function Inventaris() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('semua');
+  const [activeKategori, setActiveKategori] = useState('semua');
+  const [sortBy, setSortBy] = useState('terbaru');
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [kategoriOptions, setKategoriOptions] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [barangList, setBarangList] = useState([]);
 
@@ -315,6 +463,24 @@ export default function Inventaris() {
     fetchItems();
   }, [fetchItems]);
 
+  // Ambil daftar kategori unik sekali saja untuk isi dropdown filter
+  useEffect(() => {
+    const fetchKategori = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items/kategori`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setKategoriOptions(data.data || []);
+      } catch (err) {
+        console.error('Gagal mengambil daftar kategori:', err);
+      }
+    };
+    fetchKategori();
+  }, []);
+
   const filters = [
     { key: 'semua', label: 'Semua', count: barangList.length },
     {
@@ -340,15 +506,39 @@ export default function Inventaris() {
   ];
 
   const filteredBarang = useMemo(() => {
-    return barangList.filter((item) => {
+    const query = searchQuery.toLowerCase();
+    const result = barangList.filter((item) => {
       const matchSearch =
-        item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchFilter =
+        item.nama.toLowerCase().includes(query) ||
+        item.sku.toLowerCase().includes(query);
+      const matchStatus =
         activeFilter === 'semua' || item.status === activeFilter;
-      return matchSearch && matchFilter;
+      const matchKategori =
+        activeKategori === 'semua' || item.kategori === activeKategori;
+      return matchSearch && matchStatus && matchKategori;
     });
-  }, [searchQuery, activeFilter, barangList]);
+
+    return [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'terlama':
+          return a.id - b.id;
+        case 'az':
+          return a.nama.localeCompare(b.nama, 'id');
+        case 'za':
+          return b.nama.localeCompare(a.nama, 'id');
+        case 'terbaru':
+        default:
+          return b.id - a.id;
+      }
+    });
+  }, [searchQuery, activeFilter, activeKategori, sortBy, barangList]);
+
+  const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru';
+
+  const handleResetFilter = () => {
+    setActiveKategori('semua');
+    setSortBy('terbaru');
+  };
 
   return (
     <div className="inv-font min-h-screen bg-white">
@@ -363,9 +553,9 @@ export default function Inventaris() {
           </div>
         </div>
 
-        {/* ===== SEARCH BAR ===== */}
-        <div className="mt-5">
-          <div className="relative">
+        {/* ===== SEARCH BAR + FILTER KATEGORI ===== */}
+        <div className="mt-5 flex items-center gap-2">
+          <div className="relative flex-1">
             <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">
               <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
             </span>
@@ -387,6 +577,22 @@ export default function Inventaris() {
               </button>
             )}
           </div>
+
+          {/* Tombol Filter & Urutkan */}
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-slate-300 hover:bg-white"
+            aria-label="Buka filter dan urutan"
+          >
+            <FilterIcon size={18} />
+            {isFilterActive && (
+              <span
+                className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
+                style={{ backgroundColor: BRAND }}
+              />
+            )}
+          </button>
         </div>
 
         {/* ===== FILTER TABS ===== */}
@@ -437,7 +643,7 @@ export default function Inventaris() {
                 <HugeiconsIcon icon={PackageIcon} size={26} strokeWidth={1.5} />
               </div>
               <p className="text-sm font-semibold text-slate-700">Tidak ada barang ditemukan</p>
-              <span className="text-xs text-slate-400">Coba ubah kata kunci</span>
+              <span className="text-xs text-slate-400">Coba ubah kata kunci atau filter</span>
             </div>
           ) : (
             filteredBarang.map((item) => (
@@ -456,6 +662,18 @@ export default function Inventaris() {
       {selectedItem && (
         <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       )}
+
+      {/* ===== FILTER & URUTKAN SHEET ===== */}
+      <FilterSortSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        kategoriOptions={kategoriOptions}
+        activeKategori={activeKategori}
+        onKategoriChange={setActiveKategori}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        onReset={handleResetFilter}
+      />
     </div>
   );
 }

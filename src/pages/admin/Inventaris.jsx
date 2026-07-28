@@ -4,6 +4,12 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { BarCode01Icon, ImageAdd02Icon, Cancel01Icon, PackageIcon } from '@hugeicons/core-free-icons';
 
 const STATUS_OPTIONS = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
+const SORT_OPTIONS = [
+  { key: 'terbaru', label: 'Terbaru Ditambahkan' },
+  { key: 'terlama', label: 'Terlama Ditambahkan' },
+  { key: 'az', label: 'Nama A-Z' },
+  { key: 'za', label: 'Nama Z-A' },
+];
 
 export default function InventarisAdmin() {
   const [barangList, setBarangList] = useState([]);
@@ -17,6 +23,9 @@ export default function InventarisAdmin() {
   // State untuk Fitur Baru: Pencarian, Filter, dan Bulk Delete
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('semua');
+  const [activeKategori, setActiveKategori] = useState('semua');
+  const [sortBy, setSortBy] = useState('terbaru');
+  const [kategoriOptions, setKategoriOptions] = useState([]);
   const [selectedForDelete, setSelectedForDelete] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -50,6 +59,24 @@ export default function InventarisAdmin() {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  // Ambil daftar kategori unik untuk isi dropdown filter
+  useEffect(() => {
+    const fetchKategori = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items/kategori`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setKategoriOptions(data.data || []);
+      } catch (err) {
+        console.error('Gagal mengambil daftar kategori:', err);
+      }
+    };
+    fetchKategori();
+  }, []);
 
   const handleOpenTambah = () => {
     setItemToEdit(null);
@@ -146,14 +173,30 @@ export default function InventarisAdmin() {
   ], [barangList]);
 
   const filteredBarang = useMemo(() => {
-    return barangList.filter((item) => {
+    const query = searchQuery.toLowerCase();
+    const result = barangList.filter((item) => {
       const matchSearch =
-        item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchQuery.toLowerCase());
+        item.nama.toLowerCase().includes(query) ||
+        item.sku.toLowerCase().includes(query);
       const matchFilter = activeFilter === 'semua' || item.status === activeFilter;
-      return matchSearch && matchFilter;
+      const matchKategori = activeKategori === 'semua' || item.kategori === activeKategori;
+      return matchSearch && matchFilter && matchKategori;
     });
-  }, [searchQuery, activeFilter, barangList]);
+
+    return [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'terlama':
+          return a.id - b.id;
+        case 'az':
+          return a.nama.localeCompare(b.nama, 'id');
+        case 'za':
+          return b.nama.localeCompare(a.nama, 'id');
+        case 'terbaru':
+        default:
+          return b.id - a.id;
+      }
+    });
+  }, [searchQuery, activeFilter, activeKategori, sortBy, barangList]);
 
   // 2. PENGAMANAN SELECT ALL (Hanya pilih barang yang BUKAN berstatus dipinjam)
   const selectableBarang = useMemo(() => {
@@ -202,9 +245,9 @@ export default function InventarisAdmin() {
         </div>
       </div>
 
-      {/* SEARCH BAR */}
-      <div className="mt-4">
-        <div className="relative">
+      {/* SEARCH BAR + FILTER KATEGORI + URUTKAN */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
           <input
             type="text"
             placeholder="Cari berdasarkan nama atau SKU barang..."
@@ -223,6 +266,32 @@ export default function InventarisAdmin() {
             </button>
           )}
         </div>
+
+        <select
+          value={activeKategori}
+          onChange={(e) => {
+            setActiveKategori(e.target.value);
+            setSelectedForDelete([]);
+          }}
+          className="shrink-0 rounded-md border border-slate-300 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:bg-white"
+          aria-label="Filter kategori"
+        >
+          <option value="semua">Semua Kategori</option>
+          {kategoriOptions.map((k) => (
+            <option key={k} value={k}>{k}</option>
+          ))}
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="shrink-0 rounded-md border border-slate-300 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:bg-white"
+          aria-label="Urutkan"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.key} value={opt.key}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* TABS FILTER */}
