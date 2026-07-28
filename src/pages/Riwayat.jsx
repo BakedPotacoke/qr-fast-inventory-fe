@@ -12,6 +12,7 @@ import {
   ArrowRight01Icon,
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
+import { TransactionCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 
 // ===== STATUS CONFIG =====
 // "dipinjam" dipetakan ke warna brand (#14a2ba) karena itu status aktif/utama,
@@ -370,10 +371,9 @@ export default function Riwayat({ user }) {
         {/* ===== TRANSACTION LIST ===== */}
         <div className="mt-4 flex flex-col gap-3">
           {loading ? (
-            <>
-              <div className="h-[140px] animate-pulse rounded-3xl bg-slate-100" />
-              <div className="h-[140px] animate-pulse rounded-3xl bg-slate-100" />
-            </>
+            <SkeletonList count={4}>
+              <TransactionCardSkeleton columns={isAdmin ? 3 : 2} />
+            </SkeletonList>
           ) : error ? (
             <GagalMuatData onRetry={fetchRiwayat} />
           ) : filteredData.length === 0 ? (

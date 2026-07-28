@@ -11,6 +11,7 @@ import {
   CheckmarkCircle01Icon,
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
+import { ListCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 
 // ===== BRAND =====
 const BRAND = '#14a2ba';
@@ -630,11 +631,9 @@ export default function Inventaris() {
         {/* ===== ITEM LIST ===== */}
         <div className="mt-5 flex flex-col gap-3">
           {loading ? (
-            <>
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-            </>
+            <SkeletonList count={6}>
+              <ListCardSkeleton thumbnailSize={64} thumbnailShape="square" lines={2} showBadge />
+            </SkeletonList>
           ) : error ? (
             <GagalMuatData onRetry={fetchItems} />
           ) : filteredBarang.length === 0 ? (

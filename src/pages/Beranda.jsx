@@ -10,6 +10,9 @@ import {
 } from '@hugeicons/core-free-icons';
 import headerBg from '../assets/header-bg.webp';
 import GagalMuatData from '../components/GagalMuatData';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
+import { InlineCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 
 // ===== HELPER =====
 function getSapaan() {
@@ -247,7 +250,17 @@ export default function Beranda({ user }) {
 
           <div className="pinjaman-list space-y-3">
             {loading ? (
-              <div className="loading-skeleton-card h-20 w-full rounded-xl bg-slate-100 animate-pulse" />
+              <SkeletonList count={2}>
+                <InlineCardSkeleton
+                  thumbnailSize={48}
+                  lines={2}
+                  actions={[
+                    { width: 36, height: 36, borderRadius: 10 },
+                    { width: 150, height: 36, borderRadius: 10 },
+                  ]}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                />
+              </SkeletonList>
             ) : error ? (
               <GagalMuatData onRetry={fetchDashboardData} />
             ) : dashboardData.pinjaman.length === 0 ? (
@@ -313,14 +326,14 @@ export default function Beranda({ user }) {
           <div className="inventaris-grid grid grid-cols-2 gap-4">
             <div className="inventaris-card dark bg-[#12181C] text-white rounded-xl p-5 flex flex-col gap-1">
               {loading
-                ? <span className="loading-skeleton-text h-7 w-10 rounded bg-white/15 animate-pulse" />
+                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(255,255,255,0.15)" highlightColor="rgba(255,255,255,0.3)" />
                 : <span className="inv-number text-2xl font-semibold">{dashboardData.inventaris.totalBarang}</span>
               }
               <span className="inv-label text-xs text-white/70">Total Barang</span>
             </div>
             <div className="inventaris-card teal bg-[#14a2ba]/10 border border-[#14a2ba]/30 text-[#0b6577] rounded-xl p-5 flex flex-col gap-1">
               {loading
-                ? <span className="loading-skeleton-text h-7 w-10 rounded bg-[#14a2ba]/20 animate-pulse" />
+                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(20,162,186,0.18)" highlightColor="rgba(20,162,186,0.32)" />
                 : <span className="inv-number text-2xl font-semibold text-[#0b6577]">{dashboardData.inventaris.sedangDipinjam}</span>
               }
               <span className="inv-label text-xs text-[#0b6577]/70">Sedang Dipinjam</span>
