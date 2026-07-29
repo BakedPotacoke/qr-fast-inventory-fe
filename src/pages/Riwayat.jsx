@@ -10,9 +10,37 @@ import {
   BarCode01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Search01Icon,
+  CheckmarkCircle01Icon,
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
 import { TransactionCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
+
+// ===== BRAND =====
+const BRAND = '#14a2ba';
+const BRAND_SOFT = '#e6f6f9';
+
+// ===== ICON: FILTER (inline SVG, tidak bergantung pada paket ikon eksternal) =====
+function FilterIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 6H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 12H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="8" cy="6" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16" cy="12" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="18" r="2" fill="white" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+// ===== OPSI URUTAN =====
+const SORT_OPTIONS = [
+  { key: 'terbaru', label: 'Waktu Pinjam Terbaru' },
+  { key: 'terlama', label: 'Waktu Pinjam Terlama' },
+  { key: 'az', label: 'Nama Barang A-Z' },
+  { key: 'za', label: 'Nama Barang Z-A' },
+];
 
 // ===== STATUS CONFIG =====
 // "dipinjam" dipetakan ke warna brand (#14a2ba) karena itu status aktif/utama,
@@ -178,6 +206,130 @@ function DetailModal({ item, onClose, isAdmin }) {
   );
 }
 
+// ===== BOTTOM SHEET: FILTER & URUTKAN =====
+function FilterSortSheet({
+  open,
+  onClose,
+  kategoriOptions,
+  activeKategori,
+  onKategoriChange,
+  sortBy,
+  onSortChange,
+  onReset,
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-[85vh] w-full flex-col overflow-y-auto rounded-t-3xl bg-white pb-6 sm:max-w-md sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle bar */}
+        <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-slate-200 sm:hidden" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5">
+          <h2 className="text-lg font-bold text-slate-900">Filter & Urutkan</h2>
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200"
+            onClick={onClose}
+            type="button"
+            aria-label="Tutup"
+          >
+            <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Urutkan */}
+        <div className="mt-5 px-5">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Urutkan</p>
+          <div className="flex flex-col gap-2">
+            {SORT_OPTIONS.map((opt) => {
+              const active = sortBy === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onSortChange(opt.key)}
+                  className="flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition"
+                  style={
+                    active
+                      ? { borderColor: BRAND, background: BRAND_SOFT, color: BRAND }
+                      : { borderColor: '#e2e8f0', background: '#fff', color: '#334155' }
+                  }
+                >
+                  {opt.label}
+                  {active && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} strokeWidth={2} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Kategori */}
+        <div className="mt-6 px-5">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Kategori</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onKategoriChange('semua')}
+              className="rounded-full border px-4 py-2 text-sm font-medium transition"
+              style={
+                activeKategori === 'semua'
+                  ? { backgroundColor: BRAND, color: '#fff', borderColor: BRAND }
+                  : { backgroundColor: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
+              }
+            >
+              Semua Kategori
+            </button>
+            {kategoriOptions.map((k) => {
+              const active = activeKategori === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => onKategoriChange(k)}
+                  className="rounded-full border px-4 py-2 text-sm font-medium transition"
+                  style={
+                    active
+                      ? { backgroundColor: BRAND, color: '#fff', borderColor: BRAND }
+                      : { backgroundColor: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
+                  }
+                >
+                  {k}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-8 flex gap-3 px-5">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white transition"
+            style={{ backgroundColor: BRAND }}
+          >
+            Terapkan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ===== MAIN COMPONENT =====
 export default function Riwayat({ user }) {
   const [activeFilter, setActiveFilter] = useState('semua');
@@ -188,6 +340,12 @@ export default function Riwayat({ user }) {
   const [error, setError] = useState(null);
 
   const [activeMonthIndex, setActiveMonthIndex] = useState(0);
+
+  // ===== State baru: search, kategori, sort =====
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeKategori, setActiveKategori] = useState('semua');
+  const [sortBy, setSortBy] = useState('terbaru');
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin';
 
@@ -242,6 +400,16 @@ export default function Riwayat({ user }) {
     fetchRiwayat();
   }, [fetchRiwayat]);
 
+  // Kategori unik diambil langsung dari data transaksi yang sudah dimuat
+  // (field `kategori` sudah disertakan oleh Transaction.js findAll/findByUserId)
+  const kategoriOptions = useMemo(() => {
+    const set = new Set();
+    transaksiList.forEach((item) => {
+      if (item.kategori) set.add(item.kategori);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'id'));
+  }, [transaksiList]);
+
   const monthData = useMemo(() => {
     const monthsMap = new Map();
     transaksiList.forEach((item) => {
@@ -283,8 +451,18 @@ export default function Riwayat({ user }) {
   ];
 
   const filteredData = useMemo(() => {
-    return transaksiList.filter((item) => {
+    const query = searchQuery.toLowerCase();
+
+    const result = transaksiList.filter((item) => {
       const matchFilter = activeFilter === 'semua' || item.status === activeFilter;
+
+      const matchKategori = activeKategori === 'semua' || item.kategori === activeKategori;
+
+      const matchSearch =
+        !query ||
+        item.nama_barang?.toLowerCase().includes(query) ||
+        item.sku?.toLowerCase().includes(query) ||
+        (isAdmin && item.peminjam?.toLowerCase().includes(query));
 
       let matchMonth = true;
       if (activeMonthKey && item.raw_waktu_pinjam) {
@@ -293,9 +471,30 @@ export default function Riwayat({ user }) {
         matchMonth = sortKey === activeMonthKey;
       }
 
-      return matchFilter && matchMonth;
+      return matchFilter && matchKategori && matchSearch && matchMonth;
     });
-  }, [activeFilter, transaksiList, activeMonthKey]);
+
+    return [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'terlama':
+          return new Date(a.raw_waktu_pinjam) - new Date(b.raw_waktu_pinjam);
+        case 'az':
+          return a.nama_barang.localeCompare(b.nama_barang, 'id');
+        case 'za':
+          return b.nama_barang.localeCompare(a.nama_barang, 'id');
+        case 'terbaru':
+        default:
+          return new Date(b.raw_waktu_pinjam) - new Date(a.raw_waktu_pinjam);
+      }
+    });
+  }, [activeFilter, activeKategori, searchQuery, sortBy, transaksiList, activeMonthKey, isAdmin]);
+
+  const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru';
+
+  const handleResetFilter = () => {
+    setActiveKategori('semua');
+    setSortBy('terbaru');
+  };
 
   return (
     <div className="min-h-screen bg-white [font-family:'Plus_Jakarta_Sans',_sans-serif] antialiased">
@@ -312,6 +511,47 @@ export default function Riwayat({ user }) {
           </p>
         </div>
 
+        {/* ===== SEARCH BAR + TOMBOL FILTER ===== */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400">
+              <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
+            </span>
+            <input
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-2 focus:ring-[#14a2ba]/15"
+              type="text"
+              placeholder={isAdmin ? 'Cari nama barang, SKU, atau peminjam...' : 'Cari nama atau SKU barang...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-slate-600"
+                onClick={() => setSearchQuery('')}
+                type="button"
+                aria-label="Hapus pencarian"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
+
+          {/* Tombol Filter & Urutkan */}
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-slate-300 hover:bg-white"
+            aria-label="Buka filter dan urutan"
+          >
+            <FilterIcon size={18} />
+            {isFilterActive && (
+              <span
+                className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
+                style={{ backgroundColor: BRAND }}
+              />
+            )}
+          </button>
+        </div>
 
         {/* ===== FILTER TABS ===== */}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -382,7 +622,7 @@ export default function Riwayat({ user }) {
                 <HugeiconsIcon icon={HistoryIcon} size={24} strokeWidth={2} />
               </div>
               <p className="text-sm font-bold text-slate-700">Tidak ada riwayat transaksi</p>
-              <span className="text-xs text-slate-400">Coba ubah filter atau periode bulan</span>
+              <span className="text-xs text-slate-400">Coba ubah kata kunci, filter, atau periode bulan</span>
             </div>
           ) : (
             filteredData.map((item) => (
@@ -395,6 +635,18 @@ export default function Riwayat({ user }) {
 
       {/* ===== DETAIL MODAL ===== */}
       {selectedItem && <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} isAdmin={isAdmin} />}
+
+      {/* ===== FILTER & URUTKAN SHEET ===== */}
+      <FilterSortSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        kategoriOptions={kategoriOptions}
+        activeKategori={activeKategori}
+        onKategoriChange={setActiveKategori}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        onReset={handleResetFilter}
+      />
     </div>
   );
 }

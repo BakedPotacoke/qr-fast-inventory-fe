@@ -194,7 +194,7 @@ export default function Beranda({ user }) {
   return (
     <>
       {/* ===== HEADER (banner ilustrasi) ===== */}
-      <div className="main-header relative h-28 overflow-hidden mb-5">
+      <div className="main-header relative h-28 overflow-hidden mb-4 sm:mb-5">
         <img
           src={headerBg}
           alt=""
@@ -203,40 +203,40 @@ export default function Beranda({ user }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/5 to-black/10" />
 
-        <div className="relative z-10 flex h-full flex-col justify-end px-5 py-4">
+        <div className="relative z-10 flex h-full flex-col justify-end px-4 sm:px-5 py-3 sm:py-4">
           <div className="main-header-user flex items-center gap-3">
             <div className="rounded-full ring-2 ring-white/50">
               <AvatarIcon nama={user.nama_lengkap} />
             </div>
             <div>
-              <p className="main-greeting text-base font-semibold text-white">{sapaan},</p>
-              <p className="main-username text-base font-semibold text-white">{user.nama_lengkap}</p>
+              <p className="main-greeting text-sm sm:text-base font-semibold text-white">{sapaan},</p>
+              <p className="main-username text-sm sm:text-base font-semibold text-white">{user.nama_lengkap}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* ===== BODY CONTENT ===== */}
-      <div className="main-body px-5 space-y-6">
+      <div className="main-body px-4 sm:px-5 space-y-5 sm:space-y-6">
 
         {/* Notifikasi setelah lapor berhasil */}
         {reportedNotice && (
-          <div className="report-success-toast flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+          <div className="report-success-toast animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-emerald-700">
             {reportedNotice}
           </div>
         )}
 
         {/* Scan QR Banner */}
         <button
-          className="scan-banner w-full flex items-center gap-4 p-4 rounded-2xl bg-[#14a2ba] text-white shadow-sm hover:bg-[#0d8194] transition-colors active:scale-[0.99]"
+          className="scan-banner w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white shadow-sm hover:bg-[#0d8194] transition-all duration-200 active:scale-[0.99] hover:shadow-md"
           type="button"
           onClick={() => navigate('/scan')}
         >
-          <div className="scan-banner-icon w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+          <div className="scan-banner-icon w-10 sm:w-11 h-10 sm:h-11 rounded-lg sm:rounded-xl bg-white/15 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
             <IconQR />
           </div>
           <div className="scan-banner-text flex-1 text-left">
-            <span className="scan-banner-title block text-sm font-semibold">Scan QR Code Barang</span>
+            <span className="scan-banner-title block text-xs sm:text-sm font-semibold">Scan QR Code Barang</span>
             <span className="scan-banner-sub block text-xs text-white/80 mt-0.5">Pinjam atau kembalikan alat dengan satu scan</span>
           </div>
           <IconArrow />
@@ -244,50 +244,53 @@ export default function Beranda({ user }) {
 
         {/* Sedang Kamu Pinjam */}
         <section className="main-section">
-          <div className="section-header flex items-center justify-between mb-3">
-            <h2 className="section-title text-base font-semibold text-slate-900">Sedang Kamu Pinjam</h2>
+          <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
+            <h2 className="section-title text-sm sm:text-base font-semibold text-slate-900">Sedang Kamu Pinjam</h2>
           </div>
 
-          <div className="pinjaman-list space-y-3">
+          <div className="pinjaman-list space-y-2 sm:space-y-3">
             {loading ? (
-              <SkeletonList count={2}>
+              <SkeletonList 
+                count={2}
+                containerClassName="space-y-2 sm:space-y-3"
+              >
                 <InlineCardSkeleton
                   thumbnailSize={48}
                   lines={2}
                   actions={[
-                    { width: 36, height: 36, borderRadius: 10 },
-                    { width: 150, height: 36, borderRadius: 10 },
+                    { width: 32, height: 32, borderRadius: 8 },
+                    { width: 130, height: 32, borderRadius: 8 },
                   ]}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  className="rounded-lg sm:rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-xs"
                 />
               </SkeletonList>
             ) : error ? (
               <GagalMuatData onRetry={fetchDashboardData} />
             ) : dashboardData.pinjaman.length === 0 ? (
-              <p className="pinjaman-empty text-sm text-slate-500 text-center p-5 rounded-xl">
+              <p className="pinjaman-empty text-xs sm:text-sm text-slate-500 text-center p-4 sm:p-5 rounded-lg sm:rounded-xl">
                 Kamu tidak sedang meminjam barang apapun.
               </p>
             ) : (
               dashboardData.pinjaman.map((item) => (
                 <div
-                  className="pinjaman-card flex items-center justify-between gap-3 p-4 rounded-xl bg-white border border-slate-200 shadow-sm"
+                  className="pinjaman-card flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-sm transition-shadow duration-200"
                   key={item.id}
                 >
-                  <div className="pinjaman-info flex items-center gap-3 min-w-0">
-                    <div className="pinjaman-img w-12 h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0">
+                  <div className="pinjaman-info flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="pinjaman-img w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200">
                       {item.gambar
                         ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
                         : <IconBox />
                       }
                     </div>
                     <div className="min-w-0">
-                      <p className="pinjaman-nama text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>
+                      <p className="pinjaman-nama text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>
                       <p className="pinjaman-kode text-xs text-slate-500 truncate">{item.kategori}</p>
                     </div>
                   </div>
-                  <div className="pinjaman-actions flex items-center gap-2 shrink-0">
+                  <div className="pinjaman-actions flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <button
-                      className="report-lost-btn flex h-9 w-9 items-center justify-center rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                      className="report-lost-btn flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors duration-200 active:scale-95"
                       type="button"
                       onClick={() => setItemToReport(item)}
                       aria-label={`Laporkan ${item.nama_barang} hilang`}
@@ -296,7 +299,7 @@ export default function Beranda({ user }) {
                       <HugeiconsIcon icon={Alert01Icon} size={17} strokeWidth={2} />
                     </button>
                     <button
-                      className="scan-return-btn inline-flex items-center gap-1.5 text-xs font-semibold text-[#14a2ba] bg-[#14a2ba]/10 hover:bg-[#14a2ba]/20 px-3 py-2 rounded-lg transition-colors"
+                      className="scan-return-btn inline-flex items-center gap-1 sm:gap-1.5 text-xs font-semibold text-[#14a2ba] bg-[#14a2ba]/10 hover:bg-[#14a2ba]/20 px-2.5 sm:px-3 py-2 rounded-lg transition-colors duration-200 active:scale-95"
                       type="button"
                       onClick={() => navigate('/scan')}
                     >
@@ -312,10 +315,10 @@ export default function Beranda({ user }) {
 
         {/* Ringkasan Inventaris */}
         <section className="main-section">
-          <div className="section-header flex items-center justify-between mb-3">
-            <h2 className="section-title text-base font-semibold text-slate-900">Ringkasan Inventaris</h2>
+          <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
+            <h2 className="section-title text-sm sm:text-base font-semibold text-slate-900">Ringkasan Inventaris</h2>
             <button
-              className="section-link text-xs font-semibold text-[#14a2ba] hover:text-[#0d8194]"
+              className="section-link text-xs font-semibold text-[#14a2ba] hover:text-[#0d8194] transition-colors duration-200"
               type="button"
               onClick={() => navigate('/inventaris')}
             >
@@ -323,18 +326,18 @@ export default function Beranda({ user }) {
             </button>
           </div>
 
-          <div className="inventaris-grid grid grid-cols-2 gap-4">
-            <div className="inventaris-card dark bg-[#12181C] text-white rounded-xl p-5 flex flex-col gap-1">
+          <div className="inventaris-grid grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="inventaris-card dark bg-[#12181C] text-white rounded-lg sm:rounded-xl p-4 sm:p-5 flex flex-col gap-1 transition-transform duration-200 hover:shadow-lg">
               {loading
-                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(255,255,255,0.15)" highlightColor="rgba(255,255,255,0.3)" />
-                : <span className="inv-number text-2xl font-semibold">{dashboardData.inventaris.totalBarang}</span>
+                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(255,255,255,0.12)" highlightColor="rgba(255,255,255,0.25)" />
+                : <span className="inv-number text-xl sm:text-2xl font-semibold">{dashboardData.inventaris.totalBarang}</span>
               }
               <span className="inv-label text-xs text-white/70">Total Barang</span>
             </div>
-            <div className="inventaris-card teal bg-[#14a2ba]/10 border border-[#14a2ba]/30 text-[#0b6577] rounded-xl p-5 flex flex-col gap-1">
+            <div className="inventaris-card teal bg-[#14a2ba]/10 border border-[#14a2ba]/30 text-[#0b6577] rounded-lg sm:rounded-xl p-4 sm:p-5 flex flex-col gap-1 transition-transform duration-200 hover:shadow-lg">
               {loading
-                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(20,162,186,0.18)" highlightColor="rgba(20,162,186,0.32)" />
-                : <span className="inv-number text-2xl font-semibold text-[#0b6577]">{dashboardData.inventaris.sedangDipinjam}</span>
+                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(20,162,186,0.15)" highlightColor="rgba(20,162,186,0.28)" />
+                : <span className="inv-number text-xl sm:text-2xl font-semibold text-[#0b6577]">{dashboardData.inventaris.sedangDipinjam}</span>
               }
               <span className="inv-label text-xs text-[#0b6577]/70">Sedang Dipinjam</span>
             </div>
