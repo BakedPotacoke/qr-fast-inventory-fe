@@ -7,6 +7,9 @@ import {
   ArrowRight01Icon,
   Alert01Icon,
   Cancel01Icon,
+  CheckmarkCircle02Icon,
+  Wrench01Icon,
+  SearchRemoveIcon,
 } from '@hugeicons/core-free-icons';
 import headerBg from '../assets/header-bg.webp';
 import GagalMuatData from '../components/GagalMuatData';
@@ -27,6 +30,31 @@ function AvatarIcon({ nama }) {
   return (
     <div className="w-11 h-11 rounded-full bg-[#14a2ba] text-white flex items-center justify-center font-semibold text-base shrink-0">
       {nama?.charAt(0).toUpperCase() || 'U'}
+    </div>
+  );
+}
+
+function formatTanggalKembali(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+// ===== INVENTARIS STAT CARD =====
+function InventarisStatCard({ icon, bgClass, value, label, loading }) {
+  return (
+    <div className={`inventaris-card flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-white ${bgClass}`}>
+      <div className="min-w-0">
+        {loading
+          ? <Skeleton width={36} height={26} borderRadius={6} baseColor="rgba(255,255,255,0.25)" highlightColor="rgba(255,255,255,0.4)" />
+          : <p className="inv-number text-xl sm:text-2xl font-bold leading-none">{value}</p>
+        }
+        <p className="inv-label text-xs sm:text-sm font-medium text-white/85 mt-1.5">{label}</p>
+      </div>
+      <HugeiconsIcon icon={icon} size={29} color="#ffffff" strokeWidth={1.6} className="shrink-0" />
     </div>
   );
 }
@@ -143,7 +171,11 @@ function LaporHilangModal({ item, onClose, onSuccess }) {
 // ===== MAIN COMPONENT =====
 export default function Beranda({ user }) {
   const navigate = useNavigate();
-  const [dashboardData, setDashboardData] = useState({ pinjaman: [], inventaris: { totalBarang: 0, sedangDipinjam: 0 } });
+  const [dashboardData, setDashboardData] = useState({
+    pinjaman: [],
+    riwayat: [],
+    inventaris: { totalBarang: 0, tersedia: 0, sedangDipinjam: 0, jumlahRusak: 0, jumlahHilang: 0 },
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [itemToReport, setItemToReport] = useState(null);
@@ -313,6 +345,57 @@ export default function Beranda({ user }) {
           </div>
         </section>
 
+        {/* Terakhir Kamu Pinjam */}
+        <section className="main-section">
+          <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
+            <h2 className="section-title text-sm sm:text-base font-semibold text-slate-900">Terakhir Kamu Pinjam</h2>
+          </div>
+
+          <div className="riwayat-list space-y-2 sm:space-y-3">
+            {loading ? (
+              <SkeletonList
+                count={2}
+                containerClassName="space-y-2 sm:space-y-3"
+              >
+                <InlineCardSkeleton
+                  thumbnailSize={48}
+                  lines={2}
+                  className="rounded-lg sm:rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-xs"
+                />
+              </SkeletonList>
+            ) : error ? (
+              <GagalMuatData onRetry={fetchDashboardData} />
+            ) : dashboardData.riwayat.length === 0 ? (
+              <p className="riwayat-empty text-xs sm:text-sm text-slate-500 text-center p-4 sm:p-5 rounded-lg sm:rounded-xl">
+                Kamu belum pernah meminjam barang apapun.
+              </p>
+            ) : (
+              dashboardData.riwayat.map((item) => (
+                <div
+                  className="riwayat-card relative flex items-center gap-3 p-3 sm:p-4 pr-16 sm:pr-20 rounded-lg sm:rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-sm transition-shadow duration-200"
+                  key={item.transaction_id}
+                >
+                  <span className="riwayat-tanggal absolute top-2.5 right-3 sm:top-3 sm:right-4 text-[11px] sm:text-xs text-slate-400">
+                    {formatTanggalKembali(item.waktu_kembali)}
+                  </span>
+                  <div className="riwayat-info flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="riwayat-img w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200">
+                      {item.gambar
+                        ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
+                        : <IconBox />
+                      }
+                    </div>
+                    <div className="min-w-0">
+                      <p className="riwayat-nama text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>
+                      <p className="riwayat-kode text-xs text-slate-500 truncate">{item.kategori}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
         {/* Ringkasan Inventaris */}
         <section className="main-section">
           <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
@@ -326,21 +409,67 @@ export default function Beranda({ user }) {
             </button>
           </div>
 
+          {/* Hero card: Total Barang + breakdown bar */}
+          <div className="inventaris-hero relative overflow-hidden rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white p-4 sm:p-5 mb-3 sm:mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[11px] sm:text-xs font-medium text-white/70 uppercase tracking-wide">Total Barang</span>
+                {loading
+                  ? <div className="mt-1"><Skeleton width={56} height={30} borderRadius={6} baseColor="rgba(255,255,255,0.2)" highlightColor="rgba(255,255,255,0.35)" /></div>
+                  : <p className="inv-number text-2xl sm:text-3xl font-bold mt-1">{dashboardData.inventaris.totalBarang}</p>
+                }
+              </div>
+              <HugeiconsIcon icon={PackageIcon} size={33} color="currentColor" strokeWidth={1.6} className="shrink-0" />
+            </div>
+
+            {!loading && dashboardData.inventaris.totalBarang > 0 && (
+              <>
+                <div className="mt-4 flex h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                  <div className="h-full bg-emerald-300" style={{ width: `${(dashboardData.inventaris.tersedia / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-blue-300" style={{ width: `${(dashboardData.inventaris.sedangDipinjam / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-amber-300" style={{ width: `${(dashboardData.inventaris.jumlahRusak / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-red-300" style={{ width: `${(dashboardData.inventaris.jumlahHilang / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-white/75">
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Tersedia</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300" />Dipinjam</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />Rusak</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" />Hilang</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Grid detail: Tersedia, Dipinjam, Rusak, Hilang */}
           <div className="inventaris-grid grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="inventaris-card dark bg-[#12181C] text-white rounded-lg sm:rounded-xl p-4 sm:p-5 flex flex-col gap-1 transition-transform duration-200 hover:shadow-lg">
-              {loading
-                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(255,255,255,0.12)" highlightColor="rgba(255,255,255,0.25)" />
-                : <span className="inv-number text-xl sm:text-2xl font-semibold">{dashboardData.inventaris.totalBarang}</span>
-              }
-              <span className="inv-label text-xs text-white/70">Total Barang</span>
-            </div>
-            <div className="inventaris-card teal bg-[#14a2ba]/10 border border-[#14a2ba]/30 text-[#0b6577] rounded-lg sm:rounded-xl p-4 sm:p-5 flex flex-col gap-1 transition-transform duration-200 hover:shadow-lg">
-              {loading
-                ? <Skeleton width={40} height={28} borderRadius={6} baseColor="rgba(20,162,186,0.15)" highlightColor="rgba(20,162,186,0.28)" />
-                : <span className="inv-number text-xl sm:text-2xl font-semibold text-[#0b6577]">{dashboardData.inventaris.sedangDipinjam}</span>
-              }
-              <span className="inv-label text-xs text-[#0b6577]/70">Sedang Dipinjam</span>
-            </div>
+            <InventarisStatCard
+              icon={CheckmarkCircle02Icon}
+              bgClass="bg-emerald-500"
+              value={dashboardData.inventaris.tersedia}
+              label="Tersedia"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={PackageIcon}
+              bgClass="bg-blue-500"
+              value={dashboardData.inventaris.sedangDipinjam}
+              label="Dipinjam"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={Wrench01Icon}
+              bgClass="bg-amber-500"
+              value={dashboardData.inventaris.jumlahRusak}
+              label="Rusak"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={SearchRemoveIcon}
+              bgClass="bg-red-500"
+              value={dashboardData.inventaris.jumlahHilang}
+              label="Hilang"
+              loading={loading}
+            />
           </div>
         </section>
 

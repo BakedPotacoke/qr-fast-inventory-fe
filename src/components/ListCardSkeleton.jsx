@@ -42,9 +42,9 @@ export function ListCardSkeleton({
       <div className="min-w-0 flex-1">
         {Array.from({ length: lines }).map((_, i) => (
           <div key={i} className={i > 0 ? 'mt-2 sm:mt-1.5' : ''}>
-            <Skeleton 
-              width={i === 0 ? '70%' : '35%'} 
-              height={i === 0 ? 14 : 11} 
+            <Skeleton
+              width={i === 0 ? '70%' : '35%'}
+              height={i === 0 ? 14 : 11}
               borderRadius={4}
             />
           </div>
@@ -166,9 +166,9 @@ export function InlineCardSkeleton({
         <div className="min-w-0">
           {Array.from({ length: lines }).map((_, i) => (
             <div key={i} className={i > 0 ? 'mt-1.5 sm:mt-2' : ''}>
-              <Skeleton 
-                width={i === 0 ? 110 : 75} 
-                height={i === 0 ? 13 : 11} 
+              <Skeleton
+                width={i === 0 ? 110 : 75}
+                height={i === 0 ? 13 : 11}
                 borderRadius={4}
               />
             </div>
@@ -211,16 +211,16 @@ export function InlineCardSkeleton({
  *     </SkeletonList>
  *   ) : ( ...konten asli... )}
  */
-export function SkeletonList({ 
-  count = 6, 
-  children, 
+export function SkeletonList({
+  count = 6,
+  children,
   baseColor = '#f8fafc',
   highlightColor = '#f1f5f9',
   containerClassName = 'space-y-2 sm:space-y-3'
 }) {
   return (
-    <SkeletonTheme 
-      baseColor={baseColor} 
+    <SkeletonTheme
+      baseColor={baseColor}
       highlightColor={highlightColor}
       borderRadius={6}
       enableAnimation={true}
