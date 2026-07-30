@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BarCode01Icon, ImageAdd02Icon, Cancel01Icon, PackageIcon } from '@hugeicons/core-free-icons';
+import { BarCode01Icon, ImageAdd02Icon, Cancel01Icon, PackageIcon, FlashlightIcon, FlashlightOffIcon } from '@hugeicons/core-free-icons';
 
 const STATUS_OPTIONS = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
 const SORT_OPTIONS = [
@@ -484,6 +484,8 @@ function SkuScannerModal({ onClose, onDetected }) {
   const scannerRef = useRef(null);
   const hasDetectedRef = useRef(false);
   const [cameraError, setCameraError] = useState(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -507,6 +509,14 @@ function SkuScannerModal({ onClose, onDetected }) {
           },
           () => {}
         );
+
+        // Cek dukungan flash pada kamera yang sedang aktif.
+        try {
+          const capabilities = scanner.getRunningTrackCapabilities();
+          if (!cancelled) setTorchSupported(!!capabilities?.torch);
+        } catch (_) {
+          if (!cancelled) setTorchSupported(false);
+        }
       } catch (err) {
         setCameraError('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
         console.error(err);
@@ -526,6 +536,20 @@ function SkuScannerModal({ onClose, onDetected }) {
     };
   }, [onDetected]);
 
+  // Nyala/matikan flash kamera belakang saat scan berlangsung.
+  const toggleTorch = async () => {
+    if (!scannerRef.current || !torchSupported) return;
+    const nextState = !torchOn;
+    try {
+      await scannerRef.current.applyVideoConstraints({
+        advanced: [{ torch: nextState }],
+      });
+      setTorchOn(nextState);
+    } catch (err) {
+      console.error('Gagal mengaktifkan flash:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-md bg-white p-4" onClick={(e) => e.stopPropagation()}>
@@ -543,6 +567,18 @@ function SkuScannerModal({ onClose, onDetected }) {
 
         <div className="relative mt-3 aspect-square overflow-hidden rounded-md bg-black">
           <div id={SKU_SCANNER_ID} className="h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
+          {!cameraError && torchSupported && (
+            <button
+              type="button"
+              onClick={toggleTorch}
+              aria-label={torchOn ? 'Matikan flash' : 'Nyalakan flash'}
+              className={`absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
+                torchOn ? 'bg-[#14a2ba] text-white' : 'bg-black/45 text-white hover:bg-black/60'
+              }`}
+            >
+              <HugeiconsIcon icon={torchOn ? FlashlightIcon : FlashlightOffIcon} size={16} strokeWidth={2} />
+            </button>
+          )}
           {cameraError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900 px-6 text-center text-white">
               <HugeiconsIcon icon={BarCode01Icon} size={28} strokeWidth={1.5} />

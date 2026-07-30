@@ -9,6 +9,8 @@ import {
   Camera01Icon,
   Alert01Icon,
   Tick01Icon,
+  FlashlightIcon,
+  FlashlightOffIcon,
 } from "@hugeicons/core-free-icons";
 
 const SCANNER_ID = "qrfast-scanner-viewport";
@@ -306,6 +308,8 @@ export default function Scan() {
   const [confirmError, setConfirmError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
   const scannerRef = useRef(null);
   const isScanningRef = useRef(false);
 
@@ -318,7 +322,23 @@ export default function Scan() {
         }
       } catch (_) { }
     }
+    setTorchOn(false);
+    setTorchSupported(false);
   }, []);
+
+  // Nyala/matikan flash kamera belakang saat scan berlangsung.
+  const toggleTorch = useCallback(async () => {
+    if (!scannerRef.current || !torchSupported) return;
+    const nextState = !torchOn;
+    try {
+      await scannerRef.current.applyVideoConstraints({
+        advanced: [{ torch: nextState }],
+      });
+      setTorchOn(nextState);
+    } catch (err) {
+      console.error("Gagal mengaktifkan flash:", err);
+    }
+  }, [torchOn, torchSupported]);
 
   const startScanner = useCallback(async () => {
     if (!scannerRef.current) {
@@ -366,6 +386,14 @@ export default function Scan() {
         },
         () => { }
       );
+
+      // Cek dukungan flash pada kamera yang sedang aktif.
+      try {
+        const capabilities = scannerRef.current.getRunningTrackCapabilities();
+        setTorchSupported(!!capabilities?.torch);
+      } catch (_) {
+        setTorchSupported(false);
+      }
     } catch (err) {
       setCameraError("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
       console.error(err);
@@ -474,6 +502,25 @@ export default function Scan() {
             <span className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-[#14a2ba]" />
             <span className="absolute bottom-0 right-0 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-[#14a2ba]" />
           </div>
+        )}
+
+        {!cameraError && torchSupported && (
+          <button
+            type="button"
+            onClick={toggleTorch}
+            aria-label={torchOn ? "Matikan flash" : "Nyalakan flash"}
+            className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
+              torchOn
+                ? "bg-[#14a2ba] text-white"
+                : "bg-black/45 text-white hover:bg-black/60"
+            }`}
+          >
+            <HugeiconsIcon
+              icon={torchOn ? FlashlightIcon : FlashlightOffIcon}
+              size={18}
+              strokeWidth={2}
+            />
+          </button>
         )}
 
         {isProcessing && (
