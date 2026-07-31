@@ -188,7 +188,7 @@ export default function Beranda({ user }) {
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/summary`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -197,7 +197,13 @@ export default function Beranda({ user }) {
         throw new Error('Gagal mengambil data dashboard');
       }
       const data = await response.json();
-      setDashboardData(data);
+      // Fallback defensif: kalau backend mengembalikan bentuk yang tidak terduga,
+      // jangan sampai field jadi undefined dan bikin .length meledak saat render.
+      setDashboardData({
+        pinjaman: data.pinjaman ?? [],
+        riwayat: data.riwayat ?? [],
+        inventaris: data.inventaris ?? { totalBarang: 0, tersedia: 0, sedangDipinjam: 0, jumlahRusak: 0, jumlahHilang: 0 },
+      });
     } catch (err) {
       console.error(err);
       setError(err.message);
