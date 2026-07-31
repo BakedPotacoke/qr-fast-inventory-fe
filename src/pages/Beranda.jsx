@@ -264,6 +264,83 @@ export default function Beranda({ user }) {
           </div>
         )}
 
+      {/* Ringkasan Inventaris */}
+        <section className="main-section">
+          <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
+            <h2 className="section-title text-sm sm:text-base font-semibold text-slate-900">Ringkasan Inventaris</h2>
+            <button
+              className="section-link text-xs font-semibold text-[#14a2ba] hover:text-[#0d8194] transition-colors duration-200"
+              type="button"
+              onClick={() => navigate('/inventaris')}
+            >
+              Lihat semua
+            </button>
+          </div>
+
+          {/* Hero card: Total Barang + breakdown bar */}
+          <div className="inventaris-hero relative overflow-hidden rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white p-4 sm:p-5 mb-3 sm:mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[11px] sm:text-xs font-medium text-white/70 uppercase tracking-wide">Total Barang</span>
+                {loading
+                  ? <div className="mt-1"><Skeleton width={56} height={30} borderRadius={6} baseColor="rgba(255,255,255,0.2)" highlightColor="rgba(255,255,255,0.35)" /></div>
+                  : <p className="inv-number text-2xl sm:text-3xl font-bold mt-1">{dashboardData.inventaris.totalBarang}</p>
+                }
+              </div>
+              <HugeiconsIcon icon={PackageIcon} size={33} color="currentColor" strokeWidth={1.6} className="shrink-0" />
+            </div>
+
+            {!loading && dashboardData.inventaris.totalBarang > 0 && (
+              <>
+                <div className="mt-4 flex h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                  <div className="h-full bg-emerald-300" style={{ width: `${(dashboardData.inventaris.tersedia / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-blue-300" style={{ width: `${(dashboardData.inventaris.sedangDipinjam / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-amber-300" style={{ width: `${(dashboardData.inventaris.jumlahRusak / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                  <div className="h-full bg-red-300" style={{ width: `${(dashboardData.inventaris.jumlahHilang / dashboardData.inventaris.totalBarang) * 100}%` }} />
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-white/75">
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Tersedia</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300" />Dipinjam</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />Rusak</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" />Hilang</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Grid detail: Tersedia, Dipinjam, Rusak, Hilang */}
+          <div className="inventaris-grid grid grid-cols-2 gap-3 sm:gap-4">
+            <InventarisStatCard
+              icon={CheckmarkCircle02Icon}
+              bgClass="bg-emerald-500"
+              value={dashboardData.inventaris.tersedia}
+              label="Tersedia"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={PackageIcon}
+              bgClass="bg-blue-500"
+              value={dashboardData.inventaris.sedangDipinjam}
+              label="Dipinjam"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={Wrench01Icon}
+              bgClass="bg-amber-500"
+              value={dashboardData.inventaris.jumlahRusak}
+              label="Rusak"
+              loading={loading}
+            />
+            <InventarisStatCard
+              icon={SearchRemoveIcon}
+              bgClass="bg-red-500"
+              value={dashboardData.inventaris.jumlahHilang}
+              label="Hilang"
+              loading={loading}
+            />
+          </div>
+        </section>
+
         {/* Scan QR Banner */}
         <button
           className="scan-banner w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white shadow-sm hover:bg-[#0d8194] transition-all duration-200 active:scale-[0.99] hover:shadow-md"
@@ -288,7 +365,7 @@ export default function Beranda({ user }) {
 
           <div className="pinjaman-list space-y-2 sm:space-y-3">
             {loading ? (
-              <SkeletonList 
+              <SkeletonList
                 count={2}
                 containerClassName="space-y-2 sm:space-y-3"
               >
@@ -399,83 +476,6 @@ export default function Beranda({ user }) {
                 </div>
               ))
             )}
-          </div>
-        </section>
-
-        {/* Ringkasan Inventaris */}
-        <section className="main-section">
-          <div className="section-header flex items-center justify-between mb-2.5 sm:mb-3">
-            <h2 className="section-title text-sm sm:text-base font-semibold text-slate-900">Ringkasan Inventaris</h2>
-            <button
-              className="section-link text-xs font-semibold text-[#14a2ba] hover:text-[#0d8194] transition-colors duration-200"
-              type="button"
-              onClick={() => navigate('/inventaris')}
-            >
-              Lihat semua
-            </button>
-          </div>
-
-          {/* Hero card: Total Barang + breakdown bar */}
-          <div className="inventaris-hero relative overflow-hidden rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white p-4 sm:p-5 mb-3 sm:mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[11px] sm:text-xs font-medium text-white/70 uppercase tracking-wide">Total Barang</span>
-                {loading
-                  ? <div className="mt-1"><Skeleton width={56} height={30} borderRadius={6} baseColor="rgba(255,255,255,0.2)" highlightColor="rgba(255,255,255,0.35)" /></div>
-                  : <p className="inv-number text-2xl sm:text-3xl font-bold mt-1">{dashboardData.inventaris.totalBarang}</p>
-                }
-              </div>
-              <HugeiconsIcon icon={PackageIcon} size={33} color="currentColor" strokeWidth={1.6} className="shrink-0" />
-            </div>
-
-            {!loading && dashboardData.inventaris.totalBarang > 0 && (
-              <>
-                <div className="mt-4 flex h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-                  <div className="h-full bg-emerald-300" style={{ width: `${(dashboardData.inventaris.tersedia / dashboardData.inventaris.totalBarang) * 100}%` }} />
-                  <div className="h-full bg-blue-300" style={{ width: `${(dashboardData.inventaris.sedangDipinjam / dashboardData.inventaris.totalBarang) * 100}%` }} />
-                  <div className="h-full bg-amber-300" style={{ width: `${(dashboardData.inventaris.jumlahRusak / dashboardData.inventaris.totalBarang) * 100}%` }} />
-                  <div className="h-full bg-red-300" style={{ width: `${(dashboardData.inventaris.jumlahHilang / dashboardData.inventaris.totalBarang) * 100}%` }} />
-                </div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-white/75">
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Tersedia</span>
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300" />Dipinjam</span>
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />Rusak</span>
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" />Hilang</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Grid detail: Tersedia, Dipinjam, Rusak, Hilang */}
-          <div className="inventaris-grid grid grid-cols-2 gap-3 sm:gap-4">
-            <InventarisStatCard
-              icon={CheckmarkCircle02Icon}
-              bgClass="bg-emerald-500"
-              value={dashboardData.inventaris.tersedia}
-              label="Tersedia"
-              loading={loading}
-            />
-            <InventarisStatCard
-              icon={PackageIcon}
-              bgClass="bg-blue-500"
-              value={dashboardData.inventaris.sedangDipinjam}
-              label="Dipinjam"
-              loading={loading}
-            />
-            <InventarisStatCard
-              icon={Wrench01Icon}
-              bgClass="bg-amber-500"
-              value={dashboardData.inventaris.jumlahRusak}
-              label="Rusak"
-              loading={loading}
-            />
-            <InventarisStatCard
-              icon={SearchRemoveIcon}
-              bgClass="bg-red-500"
-              value={dashboardData.inventaris.jumlahHilang}
-              label="Hilang"
-              loading={loading}
-            />
           </div>
         </section>
 
