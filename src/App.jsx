@@ -10,9 +10,11 @@ import Scan from './pages/Scan';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminInventaris from './pages/admin/Inventaris';
-import AdminRiwayat from './pages/admin/Riwayat';
+import AdminTransaksi from './pages/admin/Transaksi';
 import AdminUserManagement from './pages/admin/UserManagement';
+import AdminLaporan from './pages/admin/Laporan';
 import './App.css';
+import Transaksi from './pages/admin/Transaksi';
 
 // Membungkus route yang WAJIB login. Jika belum login, lempar ke /login.
 function ProtectedRoute({ user, children }) {
@@ -146,8 +148,10 @@ function App() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="inventaris" element={<AdminInventaris />} />
-        <Route path="riwayat" element={<AdminRiwayat />} />
+        <Route path="transaksi" element={<Transaksi />} />
+        <Route path="laporan" element={<AdminLaporan />} />
         <Route path="users" element={<AdminUserManagement currentUser={user} />} />
+        
       </Route>
 
       {/* ===== FALLBACK ===== */}

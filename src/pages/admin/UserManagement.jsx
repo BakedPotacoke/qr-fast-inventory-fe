@@ -11,6 +11,9 @@ import {
     CheckmarkCircleIcon,
     AlertCircleIcon,
     Loading03Icon,
+    UserGroupIcon,
+    UserShield02Icon,
+    UserIcon,
 } from '@hugeicons/core-free-icons';
 
 const ROLE_OPTIONS = [
@@ -179,7 +182,7 @@ function UserFormModal({ mode, initialUser, onClose, onSaved }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl [font-family:'Plus_Jakarta_Sans',_sans-serif]">
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl">
                 {/* Header */}
                 <div className="mb-5 flex items-center justify-between">
                     <h2 className="text-lg font-bold text-slate-800">
@@ -379,7 +382,7 @@ function DeleteConfirmModal({ targetUser, onClose, onConfirmed }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl [font-family:'Plus_Jakarta_Sans',_sans-serif]">
+            <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl">
                 <h2 className="text-lg font-bold text-slate-800">Hapus Pengguna?</h2>
                 <p className="mt-2 text-sm text-slate-500">
                     Anda akan menghapus akun{' '}
@@ -533,81 +536,108 @@ export default function UserManagement({ currentUser }) {
         flashSuccess('Pengguna berhasil dihapus.');
     };
 
+    const adminCount = users.filter((u) => u.role === 'admin').length;
+    const pegawaiCount = users.length - adminCount;
+
+    // Kartu statistik, disamakan dengan pola StatCard di Dashboard.jsx, Inventaris.jsx & Transaksi.jsx
+    const stats = [
+        { key: 'total', label: 'Total Pengguna', value: users.length, icon: UserGroupIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+        { key: 'admin', label: 'Admin', value: adminCount, icon: UserShield02Icon, iconWrap: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
+        { key: 'pegawai', label: 'Pegawai', value: pegawaiCount, icon: UserIcon, iconWrap: 'bg-slate-100 text-slate-600 ring-slate-200' },
+    ];
+
     return (
-        <div className="min-h-screen bg-white [font-family:'Plus_Jakarta_Sans',_sans-serif] antialiased">
-            <div className="mx-auto w-full max-w-2xl px-4 pt-6 pb-10 sm:px-6 lg:max-w-3xl lg:px-8">
-                {/* ===== HEADER ===== */}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Kelola Pengguna</h1>
-                    <p className="mt-1 text-sm text-slate-500">Atur akun pengguna dan akses sistem</p>
-                </div>
+        <div>
+            {/* HEADER */}
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelola Pengguna</h1>
+                <p className="mt-1 text-sm text-slate-500">Atur akun pengguna dan akses sistem</p>
+            </div>
 
-                {/* ===== BODY ===== */}
-                <div className="mt-5">
-                    {/* Toolbar: search + tambah */}
-                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="relative flex-1">
-                            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <HugeiconsIcon icon={Search01Icon} size={16} strokeWidth={2} />
-                            </span>
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari nama atau email..."
-                                className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none placeholder-slate-400 focus:border-[#14a2ba] focus:ring-2 focus:ring-[#14a2ba]/20"
-                            />
+            {/* Banner sukses */}
+            {successMsg && (
+                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#14a2ba]/10 p-4 text-sm text-[#0b6577] ring-1 ring-[#14a2ba]/30">
+                    <HugeiconsIcon icon={CheckmarkCircleIcon} size={18} strokeWidth={2} className="shrink-0" />
+                    <p>{successMsg}</p>
+                </div>
+            )}
+
+            {/* Banner error load */}
+            {loadError && (
+                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+                    <HugeiconsIcon icon={AlertCircleIcon} size={18} strokeWidth={2} className="shrink-0" />
+                    <p>{loadError}</p>
+                </div>
+            )}
+
+            {/* STAT CARDS */}
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {stats.map((s) => (
+                    <div key={s.key} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${s.iconWrap}`}>
+                            <HugeiconsIcon icon={s.icon} size={20} strokeWidth={1.5} />
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setFormModal({ mode: 'create' })}
-                            className="flex items-center justify-center gap-2 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#0f8ba0]"
-                        >
-                            <HugeiconsIcon icon={Add01Icon} size={16} strokeWidth={2.5} />
-                            Tambah Pengguna
-                        </button>
+                        <div>
+                            <p className="text-2xl font-semibold leading-none text-slate-800">{s.value}</p>
+                            <p className="mt-1 text-xs text-slate-500">{s.label}</p>
+                        </div>
                     </div>
+                ))}
+            </div>
 
-                    {/* Banner sukses */}
-                    {successMsg && (
-                        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[#14a2ba]/30 bg-[#14a2ba]/10 p-3 text-xs text-[#0b6577]">
-                            <HugeiconsIcon icon={CheckmarkCircleIcon} size={18} strokeWidth={2} className="shrink-0" />
-                            <p>{successMsg}</p>
-                        </div>
-                    )}
-
-                    {/* Banner error load */}
-                    {loadError && (
-                        <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
-                            <HugeiconsIcon icon={AlertCircleIcon} size={18} strokeWidth={2} className="shrink-0" />
-                            <p>{loadError}</p>
-                        </div>
-                    )}
-
-                    {/* Daftar pengguna */}
-                    {loading ? (
-                        <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
-                            <HugeiconsIcon icon={Loading03Icon} size={18} strokeWidth={2} className="animate-spin" />
-                            Memuat data pengguna...
-                        </div>
-                    ) : filteredUsers.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center text-sm text-slate-400">
-                            {search ? 'Tidak ada pengguna yang cocok.' : 'Belum ada data pengguna.'}
-                        </div>
-                    ) : (
-                        <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
-                            {filteredUsers.map((item) => (
-                                <UserRow
-                                    key={item.id}
-                                    item={item}
-                                    isSelf={String(item.id) === String(currentUser?.id)}
-                                    onEdit={(u) => setFormModal({ mode: 'edit', user: u })}
-                                    onDelete={(u) => setDeleteTarget(u)}
-                                />
-                            ))}
-                        </div>
-                    )}
+            {/* TOOLBAR: SEARCH + TAMBAH */}
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                            <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
+                        </span>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Cari nama atau email..."
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setFormModal({ mode: 'create' })}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] active:scale-[0.98]"
+                    >
+                        <HugeiconsIcon icon={Add01Icon} size={16} strokeWidth={2.5} />
+                        Tambah Pengguna
+                    </button>
                 </div>
+            </div>
+
+            {/* DAFTAR PENGGUNA */}
+            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                {loading ? (
+                    <div className="flex flex-col items-center gap-2 p-14 text-slate-400">
+                        <HugeiconsIcon icon={Loading03Icon} size={22} strokeWidth={2} className="animate-spin text-[#14a2ba]" />
+                        <span className="text-sm">Memuat data pengguna...</span>
+                    </div>
+                ) : filteredUsers.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 p-14 text-center text-slate-400">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100">
+                            <HugeiconsIcon icon={UserGroupIcon} size={20} strokeWidth={1.75} />
+                        </div>
+                        <p className="text-sm">{search ? 'Tidak ada pengguna yang cocok.' : 'Belum ada data pengguna.'}</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {filteredUsers.map((item) => (
+                            <UserRow
+                                key={item.id}
+                                item={item}
+                                isSelf={String(item.id) === String(currentUser?.id)}
+                                onEdit={(u) => setFormModal({ mode: 'edit', user: u })}
+                                onDelete={(u) => setDeleteTarget(u)}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {formModal && (

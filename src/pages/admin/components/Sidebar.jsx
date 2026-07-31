@@ -5,15 +5,17 @@ import {
   Package02Icon,
   HistoryIcon,
   User02Icon,
+  ReturnRequestIcon,
   Cancel01Icon,
 } from '@hugeicons/core-free-icons';
 
 // ===== NAV ITEMS =====
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: Home01Icon, end: true },
-  { to: '/admin/inventaris', label: 'Inventaris', icon: Package02Icon },
-  { to: '/admin/riwayat', label: 'Riwayat Transaksi', icon: HistoryIcon },
-  { to: '/admin/users', label: 'Kelola Pengguna', icon: User02Icon },
+  { to: '/admin/inventaris', label: 'Data Barang', icon: Package02Icon },
+  { to: '/admin/transaksi', label: 'Kelola Transaksi', icon: HistoryIcon },
+  { to: '/admin/laporan', label: 'Laporan Pengembalian', icon: ReturnRequestIcon },
+  { to: '/admin/users', label: 'Kelola Pengguna', icon: User02Icon }
 ];
 
 const linkClass = ({ isActive }) =>

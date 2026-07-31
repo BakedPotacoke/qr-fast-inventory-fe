@@ -4,7 +4,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   AreaChart, Area,
 } from "recharts";
-import { Package, Users, Repeat, AlertTriangle, Clock } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  PackageIcon,
+  UserGroupIcon,
+  RepeatIcon,
+  Alert01Icon,
+  Clock01Icon,
+} from "@hugeicons/core-free-icons";
 
 // Konvensi disamakan dengan file lain di project (lihat Beranda.jsx):
 // selalu `${VITE_API_URL}/api/...`, bukan VITE_API_URL yang sudah mengandung /api.
@@ -46,11 +53,11 @@ const toneClasses = {
   red: "bg-red-50 text-red-700 ring-red-200",
 };
 
-function StatCard({ label, value, icon: Icon, tone, loading }) {
+function StatCard({ label, value, icon, tone, loading }) {
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses[tone]}`}>
-        <Icon size={20} />
+        <HugeiconsIcon icon={icon} size={20} color="currentColor" strokeWidth={1.5} />
       </div>
       <div>
         {loading ? (
@@ -160,10 +167,10 @@ export default function Dashboard() {
   }));
 
   const stats = [
-    { label: "Total Barang", value: inv.totalBarang ?? 0, icon: Package, tone: "blue" },
-    { label: "Total Pengguna", value: summary?.totalPengguna ?? 0, icon: Users, tone: "purple" },
-    { label: "Transaksi Aktif", value: summary?.transaksiAktif ?? 0, icon: Repeat, tone: "amber" },
-    { label: "Laporan 30 Hari Terakhir", value: summary?.laporanTerbaru ?? 0, icon: AlertTriangle, tone: "red" },
+    { label: "Total Barang", value: inv.totalBarang ?? 0, icon: PackageIcon, tone: "blue" },
+    { label: "Total Pengguna", value: summary?.totalPengguna ?? 0, icon: UserGroupIcon, tone: "purple" },
+    { label: "Transaksi Aktif", value: summary?.transaksiAktif ?? 0, icon: RepeatIcon, tone: "amber" },
+    { label: "Laporan 30 Hari Terakhir", value: summary?.laporanTerbaru ?? 0, icon: Alert01Icon, tone: "red" },
   ];
 
   return (
@@ -274,7 +281,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <Clock size={18} className="shrink-0 text-amber-700" />
+        <HugeiconsIcon icon={Clock01Icon} size={18} color="currentColor" strokeWidth={1.5} className="shrink-0 text-amber-700" />
         <p className="text-sm text-amber-800">
           <span className="font-medium">{summary?.transaksiAktif ?? 0} barang</span> sedang dipinjam dan belum dikembalikan.
         </p>
