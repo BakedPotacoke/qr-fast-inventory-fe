@@ -14,7 +14,7 @@ import {
 } from '@hugeicons/core-free-icons';
 
 // Sesuaikan jika base URL API Anda berbeda (mis. lewat proxy Vite / env var)
-const API_URL = '/api/transactions';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/transactions`;
 
 const formatTanggal = (value) => {
     if (!value) return '-';
