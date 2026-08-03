@@ -14,11 +14,20 @@ import {
     UserGroupIcon,
     UserShield02Icon,
     UserIcon,
+    SortByDown01Icon,
 } from '@hugeicons/core-free-icons';
 
 const ROLE_OPTIONS = [
     { value: 'pegawai', label: 'Pegawai' },
     { value: 'admin', label: 'Admin' },
+];
+
+// Opsi urutan, disamakan dengan pola SORT_OPTIONS di Inventaris.jsx
+const SORT_OPTIONS = [
+    { key: 'terbaru', label: 'Terbaru Ditambahkan' },
+    { key: 'terlama', label: 'Terlama Ditambahkan' },
+    { key: 'az', label: 'Nama A-Z' },
+    { key: 'za', label: 'Nama Z-A' },
 ];
 
 // ===== ATURAN VALIDASI (selaras dengan PROFILE_RULES di Profil.jsx) =====
@@ -77,9 +86,10 @@ function RoleBadge({ role }) {
     const isAdmin = role === 'admin';
     return (
         <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${isAdmin ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'
+            className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-3 text-xs font-semibold ring-1 ring-inset ${isAdmin ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' : 'bg-slate-100 text-slate-600 ring-slate-200'
                 }`}
         >
+            <HugeiconsIcon icon={isAdmin ? UserShield02Icon : UserIcon} size={14} color="currentColor" strokeWidth={1.5} />
             {isAdmin ? 'Admin' : 'Pegawai'}
         </span>
     );
@@ -426,40 +436,58 @@ function DeleteConfirmModal({ targetUser, onClose, onConfirmed }) {
     );
 }
 
-// ===== ROW PENGGUNA =====
-function UserRow({ item, isSelf, onEdit, onDelete }) {
+// ===== ROW PENGGUNA (baris tabel) =====
+function UserRow({ item, index, isSelf, onEdit, onDelete }) {
     const inisial = item.nama_lengkap?.charAt(0).toUpperCase() || 'U';
     return (
-        <div className="flex items-center gap-3 px-4 py-3.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e6f6f9] text-sm font-bold text-[#14a2ba]">
-                {inisial}
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-slate-800">
-                    {item.nama_lengkap} {isSelf && <span className="font-normal text-slate-400">(Anda)</span>}
-                </p>
-                <p className="truncate text-xs text-slate-400">{item.email}</p>
-            </div>
-            <RoleBadge role={item.role} />
-            <button
-                type="button"
-                onClick={() => onEdit(item)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#14a2ba]"
-                aria-label="Edit pengguna"
-            >
-                <HugeiconsIcon icon={PencilEdit02Icon} size={16} strokeWidth={2} />
-            </button>
-            <button
-                type="button"
-                onClick={() => !isSelf && onDelete(item)}
-                disabled={isSelf}
-                title={isSelf ? 'Anda tidak dapat menghapus akun sendiri' : 'Hapus pengguna'}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                aria-label="Hapus pengguna"
-            >
-                <HugeiconsIcon icon={Delete02Icon} size={16} strokeWidth={2} />
-            </button>
-        </div>
+        <tr className="transition-colors hover:bg-slate-50/70">
+            <td className="px-4 py-2.5 text-slate-500">{index + 1}</td>
+            <td className="px-4 py-2.5">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e6f6f9] text-sm font-bold text-[#14a2ba]">
+                        {inisial}
+                    </div>
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                        {item.nama_lengkap} {isSelf && <span className="font-normal text-slate-400">(Anda)</span>}
+                    </p>
+                </div>
+            </td>
+            <td className="px-4 py-2.5 text-slate-600">{item.email}</td>
+            <td className="px-4 py-2.5">
+                <RoleBadge role={item.role} />
+            </td>
+            <td className="px-4 py-2.5">
+                <div className="flex items-center justify-end gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => onEdit(item)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-[#14a2ba]/10 hover:text-[#14a2ba]"
+                        aria-label="Edit pengguna"
+                        title="Edit"
+                    >
+                        <HugeiconsIcon icon={PencilEdit02Icon} size={16} strokeWidth={1.75} />
+                    </button>
+                    {isSelf ? (
+                        <span
+                            className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
+                            title="Anda tidak dapat menghapus akun sendiri"
+                        >
+                            <HugeiconsIcon icon={Delete02Icon} size={16} strokeWidth={1.75} />
+                        </span>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => onDelete(item)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                            aria-label="Hapus pengguna"
+                            title="Hapus"
+                        >
+                            <HugeiconsIcon icon={Delete02Icon} size={16} strokeWidth={1.75} />
+                        </button>
+                    )}
+                </div>
+            </td>
+        </tr>
     );
 }
 
@@ -469,6 +497,8 @@ export default function UserManagement({ currentUser }) {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [search, setSearch] = useState('');
+    const [roleFilter, setRoleFilter] = useState('semua');
+    const [sortBy, setSortBy] = useState('terbaru');
     const [successMsg, setSuccessMsg] = useState('');
 
     const [formModal, setFormModal] = useState(null); // { mode: 'create' | 'edit', user? }
@@ -506,12 +536,27 @@ export default function UserManagement({ currentUser }) {
 
     const filteredUsers = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return users;
-        return users.filter(
-            (u) =>
-                u.nama_lengkap?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
-        );
-    }, [users, search]);
+        const result = users.filter((u) => {
+            const matchSearch =
+                !q || u.nama_lengkap?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+            const matchRole = roleFilter === 'semua' || u.role === roleFilter;
+            return matchSearch && matchRole;
+        });
+
+        return [...result].sort((a, b) => {
+            switch (sortBy) {
+                case 'terlama':
+                    return new Date(a.created_at) - new Date(b.created_at);
+                case 'az':
+                    return (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '', 'id');
+                case 'za':
+                    return (b.nama_lengkap || '').localeCompare(a.nama_lengkap || '', 'id');
+                case 'terbaru':
+                default:
+                    return new Date(b.created_at) - new Date(a.created_at);
+            }
+        });
+    }, [users, search, roleFilter, sortBy]);
 
     const flashSuccess = (msg) => {
         setSuccessMsg(msg);
@@ -538,6 +583,16 @@ export default function UserManagement({ currentUser }) {
 
     const adminCount = users.filter((u) => u.role === 'admin').length;
     const pegawaiCount = users.length - adminCount;
+
+    // Tab filter role dengan jumlah, disamakan dengan pola tab filter di Inventaris.jsx
+    const roleFilters = useMemo(
+        () => [
+            { key: 'semua', label: 'Semua', count: users.length },
+            { key: 'admin', label: 'Admin', count: adminCount },
+            { key: 'pegawai', label: 'Pegawai', count: pegawaiCount },
+        ],
+        [users.length, adminCount, pegawaiCount]
+    );
 
     // Kartu statistik, disamakan dengan pola StatCard di Dashboard.jsx, Inventaris.jsx & Transaksi.jsx
     const stats = [
@@ -585,7 +640,7 @@ export default function UserManagement({ currentUser }) {
                 ))}
             </div>
 
-            {/* TOOLBAR: SEARCH + TAMBAH */}
+            {/* TOOLBAR: SEARCH + URUTKAN + TAMBAH */}
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                     <div className="relative flex-1">
@@ -597,21 +652,76 @@ export default function UserManagement({ currentUser }) {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari nama atau email..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                         />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => setSearch('')}
+                                className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                                aria-label="Hapus pencarian"
+                            >
+                                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
+                            </button>
+                        )}
                     </div>
+
+                    <div className="relative shrink-0">
+                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                            <HugeiconsIcon icon={SortByDown01Icon} size={15} strokeWidth={2} />
+                        </span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Urutkan"
+                        >
+                            {SORT_OPTIONS.map((opt) => (
+                                <option key={opt.key} value={opt.key}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <button
                         type="button"
                         onClick={() => setFormModal({ mode: 'create' })}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] active:scale-[0.98]"
+                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] active:scale-[0.98]"
                     >
                         <HugeiconsIcon icon={Add01Icon} size={16} strokeWidth={2.5} />
                         Tambah Pengguna
                     </button>
                 </div>
+
+                {/* TABS FILTER ROLE */}
+                <div className="mt-3 flex items-center gap-2 overflow-x-auto pt-0.5 pb-0.5">
+                    {roleFilters.map((f) => {
+                        const active = roleFilter === f.key;
+                        return (
+                            <button
+                                key={f.key}
+                                type="button"
+                                onClick={() => setRoleFilter(f.key)}
+                                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                                    active
+                                        ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                {f.label}
+                                <span
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                                        active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                                    }`}
+                                >
+                                    {f.count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* DAFTAR PENGGUNA */}
+            {/* TABLE PENGGUNA */}
             <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 {loading ? (
                     <div className="flex flex-col items-center gap-2 p-14 text-slate-400">
@@ -626,16 +736,30 @@ export default function UserManagement({ currentUser }) {
                         <p className="text-sm">{search ? 'Tidak ada pengguna yang cocok.' : 'Belum ada data pengguna.'}</p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-slate-100">
-                        {filteredUsers.map((item) => (
-                            <UserRow
-                                key={item.id}
-                                item={item}
-                                isSelf={String(item.id) === String(currentUser?.id)}
-                                onEdit={(u) => setFormModal({ mode: 'edit', user: u })}
-                                onDelete={(u) => setDeleteTarget(u)}
-                            />
-                        ))}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50/80 text-slate-500">
+                                <tr>
+                                    <th className="w-12 px-4 py-3 text-xs font-semibold uppercase tracking-wide">No</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Nama Lengkap</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Email</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Role</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredUsers.map((item, index) => (
+                                    <UserRow
+                                        key={item.id}
+                                        item={item}
+                                        index={index}
+                                        isSelf={String(item.id) === String(currentUser?.id)}
+                                        onEdit={(u) => setFormModal({ mode: 'edit', user: u })}
+                                        onDelete={(u) => setDeleteTarget(u)}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>

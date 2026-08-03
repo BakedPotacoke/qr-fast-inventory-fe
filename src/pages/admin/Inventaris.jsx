@@ -441,6 +441,7 @@ export default function InventarisAdmin() {
                       title={selectableBarang.length === 0 ? "Tidak ada barang yang bisa dipilih" : "Pilih semua barang yang dapat dihapus"}
                     />
                   </th>
+                  <th className="w-12 px-3 py-3 text-xs font-semibold uppercase tracking-wide">No</th>
                   <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide">Foto</th>
                   <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide">Nama</th>
                   <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide">SKU</th>
@@ -452,7 +453,7 @@ export default function InventarisAdmin() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-14 text-center">
+                    <td colSpan={8} className="px-3 py-14 text-center">
                       <div className="flex flex-col items-center gap-2 text-slate-400">
                         <HugeiconsIcon icon={Loading03Icon} size={22} strokeWidth={2} className="animate-spin text-[#14a2ba]" />
                         <span className="text-sm">Memuat data...</span>
@@ -461,7 +462,7 @@ export default function InventarisAdmin() {
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-14 text-center">
+                    <td colSpan={8} className="px-3 py-14 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-500">
                           <HugeiconsIcon icon={AlertCircleIcon} size={20} strokeWidth={1.75} />
@@ -480,7 +481,7 @@ export default function InventarisAdmin() {
                   </tr>
                 ) : filteredBarang.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-14 text-center">
+                    <td colSpan={8} className="px-3 py-14 text-center">
                       <div className="flex flex-col items-center gap-2 text-slate-400">
                         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100">
                           <HugeiconsIcon icon={PackageSearchIcon} size={20} strokeWidth={1.75} />
@@ -490,7 +491,7 @@ export default function InventarisAdmin() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBarang.map((item) => {
+                  filteredBarang.map((item, index) => {
                     const isChecked = selectedForDelete.includes(item.id);
                     const isBorrowed = item.status === 'dipinjam';
                     const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.hilang;
@@ -508,6 +509,7 @@ export default function InventarisAdmin() {
                             title={isBorrowed ? "Barang sedang dipinjam tidak dapat dipilih" : ""}
                           />
                         </td>
+                        <td className="px-3 py-2.5 text-slate-500">{index + 1}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
                             {item.gambar ? (

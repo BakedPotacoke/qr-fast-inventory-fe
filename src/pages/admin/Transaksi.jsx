@@ -9,6 +9,9 @@ import {
     InboxIcon,
     Loading03Icon,
     Clock01Icon,
+    Tag01Icon,
+    SortByDown01Icon,
+    Cancel01Icon,
 } from '@hugeicons/core-free-icons';
 
 // Sesuaikan jika base URL API Anda berbeda (mis. lewat proxy Vite / env var)
@@ -17,6 +20,14 @@ const API_URL = `${import.meta.env.VITE_API_URL}/api/transactions`;
 const STATUS_OPTIONS = [
     { value: 'dipinjam', label: 'Dipinjam' },
     { value: 'selesai', label: 'Selesai' },
+];
+
+// Opsi urutan, disamakan dengan pola SORT_OPTIONS di Inventaris.jsx
+const SORT_OPTIONS = [
+    { key: 'terbaru', label: 'Waktu Pinjam Terbaru' },
+    { key: 'terlama', label: 'Waktu Pinjam Terlama' },
+    { key: 'az', label: 'Nama Barang A-Z' },
+    { key: 'za', label: 'Nama Barang Z-A' },
 ];
 
 const formatTanggal = (value) => {
@@ -40,6 +51,8 @@ export default function Transaksi() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [statusFilter, setStatusFilter] = useState('semua');
+    const [activeKategori, setActiveKategori] = useState('semua');
+    const [sortBy, setSortBy] = useState('terbaru');
     const [search, setSearch] = useState('');
     const [processingId, setProcessingId] = useState(null);
     const [toast, setToast] = useState(null);
@@ -115,18 +128,39 @@ export default function Transaksi() {
         }
     };
 
+    // Daftar kategori unik untuk isi dropdown filter, disamakan dengan pola di Inventaris.jsx
+    const kategoriOptions = useMemo(() => {
+        const unique = new Set(transactions.map((t) => t.kategori).filter(Boolean));
+        return [...unique].sort((a, b) => a.localeCompare(b, 'id'));
+    }, [transactions]);
+
     const filtered = useMemo(() => {
-        return transactions.filter((t) => {
+        const result = transactions.filter((t) => {
             const matchStatus = statusFilter === 'semua' || t.status === statusFilter;
+            const matchKategori = activeKategori === 'semua' || t.kategori === activeKategori;
             const q = search.trim().toLowerCase();
             const matchSearch =
                 !q ||
                 t.nama_barang?.toLowerCase().includes(q) ||
                 t.peminjam?.toLowerCase().includes(q) ||
                 t.sku?.toLowerCase().includes(q);
-            return matchStatus && matchSearch;
+            return matchStatus && matchKategori && matchSearch;
         });
-    }, [transactions, statusFilter, search]);
+
+        return [...result].sort((a, b) => {
+            switch (sortBy) {
+                case 'terlama':
+                    return new Date(a.waktu_pinjam) - new Date(b.waktu_pinjam);
+                case 'az':
+                    return (a.nama_barang || '').localeCompare(b.nama_barang || '', 'id');
+                case 'za':
+                    return (b.nama_barang || '').localeCompare(a.nama_barang || '', 'id');
+                case 'terbaru':
+                default:
+                    return new Date(b.waktu_pinjam) - new Date(a.waktu_pinjam);
+            }
+        });
+    }, [transactions, statusFilter, activeKategori, search, sortBy]);
 
     const activeCount = transactions.filter((t) => t.status === 'dipinjam').length;
     const selesaiCount = transactions.length - activeCount;
@@ -191,19 +225,64 @@ export default function Transaksi() {
                 ))}
             </div>
 
-            {/* TOOLBAR: SEARCH + FILTER STATUS */}
+            {/* TOOLBAR: SEARCH + FILTER KATEGORI + URUTKAN + FILTER STATUS */}
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
-                        <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
-                    </span>
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Cari nama barang, peminjam, atau SKU..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
-                    />
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="relative min-w-[220px] flex-1">
+                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                            <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
+                        </span>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Cari nama barang, peminjam, atau SKU..."
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                        />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => setSearch('')}
+                                className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                                aria-label="Hapus pencarian"
+                            >
+                                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="relative shrink-0">
+                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                            <HugeiconsIcon icon={Tag01Icon} size={15} strokeWidth={2} />
+                        </span>
+                        <select
+                            value={activeKategori}
+                            onChange={(e) => setActiveKategori(e.target.value)}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Filter kategori"
+                        >
+                            <option value="semua">Semua Kategori</option>
+                            {kategoriOptions.map((k) => (
+                                <option key={k} value={k}>{k}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="relative shrink-0">
+                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+                            <HugeiconsIcon icon={SortByDown01Icon} size={15} strokeWidth={2} />
+                        </span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Urutkan"
+                        >
+                            {SORT_OPTIONS.map((opt) => (
+                                <option key={opt.key} value={opt.key}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {/* TABS FILTER STATUS */}
@@ -268,6 +347,7 @@ export default function Transaksi() {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-50/80 text-slate-500">
                                 <tr>
+                                    <th className="w-12 px-4 py-3 text-xs font-semibold uppercase tracking-wide">No</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Barang</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Peminjam</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Kategori</th>
@@ -277,8 +357,9 @@ export default function Transaksi() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filtered.map((t) => (
+                                {filtered.map((t, index) => (
                                     <tr key={t.id} className="transition-colors hover:bg-slate-50/70">
+                                        <td className="px-4 py-2.5 text-slate-500">{index + 1}</td>
                                         <td className="px-4 py-2.5">
                                             <div className="font-medium text-slate-800">{t.nama_barang}</div>
                                             <div className="font-mono text-xs text-slate-400">{t.sku}</div>
