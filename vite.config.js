@@ -37,23 +37,38 @@ export default defineConfig({
         //    Karena kedua halaman itu lazy-loaded, recharts juga tidak akan diunduh
         //    oleh user biasa (non-admin).
         // -----------------------------------------------------------------------
-        manualChunks: {
-          // Core React — paling kecil perubahannya, cache-nya paling panjang
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Core React — paling kecil perubahannya, cache-nya paling panjang
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/react-router-dom/')
+            ) {
+              return 'vendor-react';
+            }
 
-          // Chart library — cukup besar (~400KB), hanya dipakai halaman admin
-          'vendor-charts': ['recharts'],
+            // Chart library — cukup besar (~400KB), hanya dipakai halaman admin
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
 
-          // Icon packages — dipakai di hampir semua halaman, lebih baik jadi
-          // satu chunk shared daripada duplikat di tiap chunk halaman
-          'vendor-icons': [
-            'lucide-react',
-            '@hugeicons/react',
-            '@hugeicons/core-free-icons',
-          ],
+            // Icon packages — dipakai di hampir semua halaman
+            if (
+              id.includes('lucide-react') ||
+              id.includes('@hugeicons')
+            ) {
+              return 'vendor-icons';
+            }
 
-          // UI utilities yang ringan tapi dipakai lintas halaman
-          'vendor-ui': ['sweetalert2', 'react-loading-skeleton'],
+            // UI utilities yang ringan tapi dipakai lintas halaman
+            if (
+              id.includes('sweetalert2') ||
+              id.includes('react-loading-skeleton')
+            ) {
+              return 'vendor-ui';
+            }
+          }
         },
       },
     },
