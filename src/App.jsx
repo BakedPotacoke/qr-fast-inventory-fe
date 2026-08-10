@@ -1,41 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import LoginRegister from './pages/LoginRegister';
-import BottomNavigation from './components/BottomNavigation';
-import Beranda from './pages/Beranda';
-import Inventaris from './pages/Inventaris';
-import Riwayat from './pages/Riwayat';
-import Profil from './pages/Profil';
-import Scan from './pages/Scan';
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminInventaris from './pages/admin/Inventaris';
-import AdminTransaksi from './pages/admin/Transaksi';
-import AdminUserManagement from './pages/admin/UserManagement';
-import AdminLaporan from './pages/admin/Laporan';
+import BottomNavigation from './components/BottomNavigation'; // Eager — layout tetap, selalu dibutuhkan user login
 import './App.css';
-import Transaksi from './pages/admin/Transaksi';
 
-// Membungkus route yang WAJIB login. Jika belum login, lempar ke /login.
+// Auth — dimuat hanya untuk user yang belum login
+const LoginRegister = lazy(() => import('./pages/LoginRegister'));
+
+// User pages — dimuat saat user login sebagai non-admin
+const Beranda    = lazy(() => import('./pages/Beranda'));
+const Inventaris = lazy(() => import('./pages/Inventaris'));
+const Riwayat    = lazy(() => import('./pages/Riwayat'));
+const Profil     = lazy(() => import('./pages/Profil'));
+// Scan juga membawa html5-qrcode (~300KB); chunk-nya tidak akan diunduh
+// sebelum user membuka halaman /scan.
+const Scan       = lazy(() => import('./pages/Scan'));
+
+// Admin area — seluruh bagian admin (termasuk AdminLayout, Sidebar, Topbar)
+// hanya diunduh oleh user dengan role 'admin'.
+const AdminLayout         = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminDashboard      = lazy(() => import('./pages/admin/Dashboard'));
+const AdminInventaris     = lazy(() => import('./pages/admin/Inventaris'));
+const AdminTransaksi      = lazy(() => import('./pages/admin/Transaksi'));
+const AdminLaporan        = lazy(() => import('./pages/admin/Laporan'));
+const AdminUserManagement = lazy(() => import('./pages/admin/UserManagement'));
+
+// =============================================================================
+// LOADING FALLBACK
+// Ditampilkan selama chunk JS halaman sedang diunduh.
+// =============================================================================
+function PageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#14a2ba] border-t-transparent" />
+        <span className="text-sm text-slate-400">Memuat halaman...</span>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ROUTE GUARDS
+// =============================================================================
+
+// Wajib login. Jika belum, lempar ke /login.
 function ProtectedRoute({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
-// Membungkus route khusus admin. Jika belum login -> /login,
-// jika login tapi bukan admin (termasuk setelah role diturunkan) -> /.
+// Khusus admin. Jika bukan admin (termasuk setelah role diturunkan) → /.
 function AdminRoute({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
 
-// Membungkus route login. Jika sudah login, lempar ke halaman utama.
+// Route publik. Jika sudah login, lempar ke halaman utama.
 function PublicRoute({ user, children }) {
   if (user) return <Navigate to="/" replace />;
   return children;
 }
 
+// =============================================================================
+// APP
+// =============================================================================
 function App() {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem('token');
@@ -65,14 +94,12 @@ function App() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!response.ok) {
-          throw new Error('Session tidak valid');
-        }
+        if (!response.ok) throw new Error('Session tidak valid');
 
         const data = await response.json();
         localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
-      } catch (error) {
+      } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
@@ -101,67 +128,89 @@ function App() {
   };
 
   return (
-    <Routes>
-      {/* ===== HALAMAN LOGIN / REGISTER ===== */}
-      <Route
-        path="/login"
-        element={
-          <PublicRoute user={user}>
-            <LoginRegister onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        }
-      />
+    // Suspense tunggal membungkus seluruh Routes.
+    // React akan menampilkan <PageLoader /> setiap kali chunk halaman baru
+    // sedang diunduh, lalu merender halaman begitu chunk tersedia.
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
 
-      {/* ===== SCAN (fullscreen, tanpa bottom nav) ===== */}
-      <Route
-        path="/scan"
-        element={
-          <ProtectedRoute user={user}>
-            <Scan user={user} />
-          </ProtectedRoute>
-        }
-      />
+        {/* ===== LOGIN / REGISTER ===== */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute user={user}>
+              <LoginRegister onLoginSuccess={handleLoginSuccess} />
+            </PublicRoute>
+          }
+        />
 
-      {/* ===== LAYOUT UTAMA (dengan bottom nav) ===== */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute user={user}>
-            <BottomNavigation user={user} onLogout={handleLogout} />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Beranda user={user} />} />
-        <Route path="inventaris" element={<Inventaris user={user} />} />
-        <Route path="riwayat" element={<Riwayat user={user} />} />
-        <Route path="profil" element={<Profil user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />} />
-      </Route>
+        {/* ===== SCAN (fullscreen, tanpa bottom nav) ===== */}
+        <Route
+          path="/scan"
+          element={
+            <ProtectedRoute user={user}>
+              <Scan user={user} />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* ===== ADMIN CONTROL PANEL (layout & sidebar terpisah) ===== */}
-      <Route
-        path="/admin"
-        element={
-          <AdminRoute user={user}>
-            <AdminLayout user={user} onLogout={handleLogout} />
-          </AdminRoute>
-        }
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="inventaris" element={<AdminInventaris />} />
-        <Route path="transaksi" element={<Transaksi />} />
-        <Route path="laporan" element={<AdminLaporan />} />
-        <Route path="users" element={<AdminUserManagement currentUser={user} />} />
-        
-      </Route>
+        {/* ===== LAYOUT UTAMA (dengan bottom nav) ===== */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute user={user}>
+              <BottomNavigation user={user} onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Beranda user={user} />} />
+          <Route path="inventaris" element={<Inventaris user={user} />} />
+          <Route path="riwayat" element={<Riwayat user={user} />} />
+          <Route
+            path="profil"
+            element={
+              <Profil
+                user={user}
+                onLogout={handleLogout}
+                onUpdateUser={handleUpdateUser}
+              />
+            }
+          />
+        </Route>
 
-      {/* ===== FALLBACK ===== */}
-      <Route
-        path="*"
-        element={<Navigate to={user ? (user.role === 'admin' ? '/admin' : '/') : '/login'} replace />}
-      />
-    </Routes>
+        {/* ===== ADMIN CONTROL PANEL ===== */}
+        {/* AdminLayout (+ Sidebar & Topbar) baru diunduh saat user admin login. */}
+        {/* Navigasi antar sub-halaman admin (inventaris, transaksi, dll.)       */}
+        {/* hanya mengunduh chunk halaman yang dituju, bukan seluruh admin area. */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute user={user}>
+              <AdminLayout user={user} onLogout={handleLogout} />
+            </AdminRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="inventaris" element={<AdminInventaris />} />
+          <Route path="transaksi" element={<AdminTransaksi />} />
+          <Route path="laporan" element={<AdminLaporan />} />
+          <Route path="users" element={<AdminUserManagement currentUser={user} />} />
+        </Route>
+
+        {/* ===== FALLBACK ===== */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={user ? (user.role === 'admin' ? '/admin' : '/') : '/login'}
+              replace
+            />
+          }
+        />
+
+      </Routes>
+    </Suspense>
   );
 }
-
 
 export default App;

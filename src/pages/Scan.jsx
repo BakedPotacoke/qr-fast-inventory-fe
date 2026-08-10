@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+// html5-qrcode TIDAK diimpor di sini lagi.
+// Library ini (~300KB) akan di-import secara dinamis di dalam startScanner()
+// sehingga hanya diunduh dan di-parse saat kamera benar-benar diaktifkan,
+// bukan saat halaman /scan pertama kali dirender.
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Cancel01Icon,
@@ -14,28 +17,6 @@ import {
 } from "@hugeicons/core-free-icons";
 
 const SCANNER_ID = "qrfast-scanner-viewport";
-
-// Jangan batasi hanya format QR — aktifkan semua format QR & barcode yang
-// didukung html5-qrcode. Ref: https://github.com/mebjas/html5-qrcode#scanning-only-specific-formats
-const ALL_SUPPORTED_FORMATS = [
-  Html5QrcodeSupportedFormats.QR_CODE,
-  Html5QrcodeSupportedFormats.AZTEC,
-  Html5QrcodeSupportedFormats.CODABAR,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.CODE_93,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.DATA_MATRIX,
-  Html5QrcodeSupportedFormats.MAXICODE,
-  Html5QrcodeSupportedFormats.ITF,
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.PDF_417,
-  Html5QrcodeSupportedFormats.RSS_14,
-  Html5QrcodeSupportedFormats.RSS_EXPANDED,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
-];
 
 // ===== Utility: overlay timestamp ke foto via Canvas =====
 async function overlayTimestampToBlob(file) {
@@ -71,22 +52,26 @@ async function overlayTimestampToBlob(file) {
       ctx.shadowBlur = 0;
 
       URL.revokeObjectURL(url);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Canvas toBlob gagal"));
-      }, "image/jpeg", 0.92);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Canvas toBlob gagal"));
+        },
+        "image/jpeg",
+        0.92
+      );
     };
     img.onerror = reject;
     img.src = url;
   });
 }
 
-// ===== MODAL FORM PENGEMBALIAN BARANG (menggantikan KondisiKonfirmasiModal) =====
+// ===== MODAL FORM PENGEMBALIAN BARANG =====
 function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, submitError }) {
   const [isRusak, setIsRusak] = useState(false);
   const [keterangan, setKeterangan] = useState("");
-  const [fotoFile, setFotoFile] = useState(null);   // File original dari input
-  const [fotoPreview, setFotoPreview] = useState(null); // Object URL untuk preview
+  const [fotoFile, setFotoFile] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
   const fotoInputRef = useRef(null);
 
   // Bersihkan object URL saat komponen unmount
@@ -320,7 +305,7 @@ export default function Scan() {
         if (state === 2) {
           await scannerRef.current.stop();
         }
-      } catch (_) { }
+      } catch (_) {}
     }
     setTorchOn(false);
     setTorchSupported(false);
@@ -342,11 +327,43 @@ export default function Scan() {
 
   const startScanner = useCallback(async () => {
     if (!scannerRef.current) {
+      // -----------------------------------------------------------------------
+      // DYNAMIC IMPORT — html5-qrcode (~300KB) hanya diunduh & di-parse di sini,
+      // saat kamera pertama kali diinisialisasi. Karena berada di dalam
+      // if (!scannerRef.current), import() hanya dipanggil sekali per sesi;
+      // kunjungan berikutnya ke /scan langsung pakai instance yang sudah ada di ref.
+      // -----------------------------------------------------------------------
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
+
+      // Daftar format dibangun di sini (setelah import) karena
+      // Html5QrcodeSupportedFormats sudah tidak tersedia di module scope.
+      // Ref: https://github.com/mebjas/html5-qrcode#scanning-only-specific-formats
+      const ALL_SUPPORTED_FORMATS = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.AZTEC,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
+        Html5QrcodeSupportedFormats.MAXICODE,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.PDF_417,
+        Html5QrcodeSupportedFormats.RSS_14,
+        Html5QrcodeSupportedFormats.RSS_EXPANDED,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+      ];
+
       scannerRef.current = new Html5Qrcode(SCANNER_ID, {
         formatsToSupport: ALL_SUPPORTED_FORMATS,
         verbose: false,
       });
     }
+
     try {
       await scannerRef.current.start(
         { facingMode: "environment" },
@@ -369,7 +386,6 @@ export default function Scan() {
             const data = await res.json();
 
             if (res.ok && data.status === "konfirmasi_kembali") {
-              // Jangan tampilkan hasil dulu — minta user konfirmasi kondisi barang.
               setConfirmState({
                 transaction_id: data.transaction_id,
                 barang: data.barang,
@@ -384,7 +400,7 @@ export default function Scan() {
             setIsProcessing(false);
           }
         },
-        () => { }
+        () => {}
       );
 
       // Cek dukungan flash pada kamera yang sedang aktif.
@@ -423,7 +439,6 @@ export default function Scan() {
   };
 
   const handleCancelConfirm = async () => {
-    // Belum ada apapun yang tersimpan di server untuk state ini, aman langsung reset.
     await handleScanAgain();
   };
 
@@ -545,7 +560,7 @@ export default function Scan() {
         </div>
       )}
 
-      {/* Form Pengembalian Barang (menggantikan modal konfirmasi lama) */}
+      {/* Form Pengembalian Barang */}
       {confirmState && (
         <PengembalianFormModal
           confirmState={confirmState}
