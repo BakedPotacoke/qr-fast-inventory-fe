@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     Add01Icon,
@@ -16,6 +16,9 @@ import {
     UserIcon,
     SortByDown01Icon,
 } from '@hugeicons/core-free-icons';
+import Pagination from '../../components/Pagination';
+
+const PAGE_LIMIT = 15;
 
 const ROLE_OPTIONS = [
     { value: 'pegawai', label: 'Pegawai' },
@@ -493,10 +496,19 @@ function UserRow({ item, index, isSelf, onEdit, onDelete }) {
 
 // ===== MAIN COMPONENT =====
 export default function UserManagement({ currentUser }) {
+    // ── Server-side data ─────────────────────────────────────────────────────
     const [users, setUsers] = useState([]);
+    const [pagination, setPagination] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
+
+    // ── Stats — diambil dari endpoint terpisah agar akurat lintas filter ─────
+    const [globalStats, setGlobalStats] = useState({ total: 0, admin: 0, pegawai: 0 });
+
+    // ── Filter state ─────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('semua');
     const [sortBy, setSortBy] = useState('terbaru');
     const [successMsg, setSuccessMsg] = useState('');
@@ -504,59 +516,87 @@ export default function UserManagement({ currentUser }) {
     const [formModal, setFormModal] = useState(null); // { mode: 'create' | 'edit', user? }
     const [deleteTarget, setDeleteTarget] = useState(null);
 
-    const fetchUsers = async () => {
+    const authHeaders = useCallback(() => {
+        const token = localStorage.getItem('token');
+        return { Authorization: `Bearer ${token}` };
+    }, []);
+
+    // ── Bangun URL fetch ─────────────────────────────────────────────────────
+    const buildUrl = useCallback((page) => {
+        const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+        if (roleFilter !== 'semua')       params.set('role', roleFilter);
+        if (debouncedSearch && debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+        params.set('sortBy', sortBy);
+        return `${import.meta.env.VITE_API_URL}/api/users?${params.toString()}`;
+    }, [roleFilter, debouncedSearch, sortBy]);
+
+    // ── Fetch halaman pengguna ───────────────────────────────────────────────
+    const fetchUsers = useCallback(async (page = 1) => {
         setLoading(true);
         setLoadError('');
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await fetch(buildUrl(page), { headers: authHeaders() });
             const result = await res.json();
 
             if (!res.ok) {
                 setLoadError(result.message || 'Gagal memuat data pengguna.');
-                setLoading(false);
                 return;
             }
 
             setUsers(result.data || []);
+            setPagination(result.pagination || null);
         } catch (err) {
             console.error('Fetch users error:', err);
             setLoadError('Tidak dapat terhubung ke server.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [buildUrl, authHeaders]);
 
+    // ── Fetch stats global (tanpa filter) — sekali saat mount & setelah mutasi
+    const fetchStats = useCallback(async () => {
+        try {
+            const headers = authHeaders();
+            const base = `${import.meta.env.VITE_API_URL}/api/users`;
+            const [totalRes, adminRes, pegawaiRes] = await Promise.all([
+                fetch(`${base}?page=1&limit=1`, { headers }),
+                fetch(`${base}?page=1&limit=1&role=admin`, { headers }),
+                fetch(`${base}?page=1&limit=1&role=pegawai`, { headers }),
+            ]);
+            const [totalBody, adminBody, pegawaiBody] = await Promise.all([
+                totalRes.json(), adminRes.json(), pegawaiRes.json(),
+            ]);
+            setGlobalStats({
+                total:   totalBody.pagination?.total   ?? 0,
+                admin:   adminBody.pagination?.total   ?? 0,
+                pegawai: pegawaiBody.pagination?.total ?? 0,
+            });
+        } catch {
+            // Stats tidak kritis — gagal diam-diam
+        }
+    }, [authHeaders]);
+
+    // Debounce input search (500 ms) sebelum mengubah debouncedSearch
     useEffect(() => {
-        fetchUsers();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
-    const filteredUsers = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        const result = users.filter((u) => {
-            const matchSearch =
-                !q || u.nama_lengkap?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
-            const matchRole = roleFilter === 'semua' || u.role === roleFilter;
-            return matchSearch && matchRole;
-        });
+    // Fetch data saat currentPage, roleFilter, debouncedSearch, atau sortBy berubah
+    useEffect(() => {
+        fetchUsers(currentPage);
+    }, [currentPage, roleFilter, debouncedSearch, sortBy, fetchUsers]);
 
-        return [...result].sort((a, b) => {
-            switch (sortBy) {
-                case 'terlama':
-                    return new Date(a.created_at) - new Date(b.created_at);
-                case 'az':
-                    return (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '', 'id');
-                case 'za':
-                    return (b.nama_lengkap || '').localeCompare(a.nama_lengkap || '', 'id');
-                case 'terbaru':
-                default:
-                    return new Date(b.created_at) - new Date(a.created_at);
-            }
-        });
-    }, [users, search, roleFilter, sortBy]);
+    // Fetch stats saat mount
+    useEffect(() => {
+        fetchStats();
+    }, [fetchStats]);
+
+    // ── Sort sudah dilakukan server-side — langsung pakai users ─────────────
+    const filteredUsers = users;
 
     const flashSuccess = (msg) => {
         setSuccessMsg(msg);
@@ -569,36 +609,46 @@ export default function UserManagement({ currentUser }) {
             setUsers((prev) => prev.map((u) => (u.id === savedUser.id ? { ...u, ...savedUser } : u)));
             flashSuccess('Pengguna berhasil diperbarui.');
         } else {
-            // Jika API create tidak mengirim seluruh objek user, ambil ulang daftar untuk konsistensi
-            fetchUsers();
+            setCurrentPage(1);
+            fetchUsers(1);
             flashSuccess('Pengguna berhasil ditambahkan.');
         }
+        fetchStats();
     };
 
     const handleDeleted = (id) => {
-        setUsers((prev) => prev.filter((u) => u.id !== id));
         setDeleteTarget(null);
         flashSuccess('Pengguna berhasil dihapus.');
+        // Refresh halaman aktif; mundur 1 halaman jika halaman sekarang jadi kosong
+        const nextPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+        setCurrentPage(nextPage);
+        fetchUsers(nextPage);
+        fetchStats();
     };
 
-    const adminCount = users.filter((u) => u.role === 'admin').length;
-    const pegawaiCount = users.length - adminCount;
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
-    // Tab filter role dengan jumlah, disamakan dengan pola tab filter di Inventaris.jsx
-    const roleFilters = useMemo(
-        () => [
-            { key: 'semua', label: 'Semua', count: users.length },
-            { key: 'admin', label: 'Admin', count: adminCount },
-            { key: 'pegawai', label: 'Pegawai', count: pegawaiCount },
-        ],
-        [users.length, adminCount, pegawaiCount]
-    );
+    // ── Handler filter role ──────────────────────────────────────────────────
+    const handleRoleFilterChange = (key) => {
+        setRoleFilter(key);
+        setCurrentPage(1);
+    };
+
+    // Tab filter role — count dari globalStats agar akurat lintas halaman
+    const roleFilters = [
+        { key: 'semua',   label: 'Semua',   count: globalStats.total },
+        { key: 'admin',   label: 'Admin',   count: globalStats.admin },
+        { key: 'pegawai', label: 'Pegawai', count: globalStats.pegawai },
+    ];
 
     // Kartu statistik, disamakan dengan pola StatCard di Dashboard.jsx, Inventaris.jsx & Transaksi.jsx
     const stats = [
-        { key: 'total', label: 'Total Pengguna', value: users.length, icon: UserGroupIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-        { key: 'admin', label: 'Admin', value: adminCount, icon: UserShield02Icon, iconWrap: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
-        { key: 'pegawai', label: 'Pegawai', value: pegawaiCount, icon: UserIcon, iconWrap: 'bg-slate-100 text-slate-600 ring-slate-200' },
+        { key: 'total',   label: 'Total Pengguna', value: globalStats.total,   icon: UserGroupIcon,   iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+        { key: 'admin',   label: 'Admin',           value: globalStats.admin,   icon: UserShield02Icon, iconWrap: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
+        { key: 'pegawai', label: 'Pegawai',          value: globalStats.pegawai, icon: UserIcon,        iconWrap: 'bg-slate-100 text-slate-600 ring-slate-200' },
     ];
 
     return (
@@ -657,7 +707,7 @@ export default function UserManagement({ currentUser }) {
                         {search && (
                             <button
                                 type="button"
-                                onClick={() => setSearch('')}
+                                onClick={() => { setSearch(''); setDebouncedSearch(''); setCurrentPage(1); }}
                                 className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                                 aria-label="Hapus pencarian"
                             >
@@ -672,7 +722,7 @@ export default function UserManagement({ currentUser }) {
                         </span>
                         <select
                             value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
+                            onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                             className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                             aria-label="Urutkan"
                         >
@@ -700,7 +750,7 @@ export default function UserManagement({ currentUser }) {
                             <button
                                 key={f.key}
                                 type="button"
-                                onClick={() => setRoleFilter(f.key)}
+                                onClick={() => handleRoleFilterChange(f.key)}
                                 className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                                     active
                                         ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30'
@@ -752,7 +802,7 @@ export default function UserManagement({ currentUser }) {
                                     <UserRow
                                         key={item.id}
                                         item={item}
-                                        index={index}
+                                        index={pagination ? (pagination.page - 1) * pagination.limit + index : index}
                                         isSelf={String(item.id) === String(currentUser?.id)}
                                         onEdit={(u) => setFormModal({ mode: 'edit', user: u })}
                                         onDelete={(u) => setDeleteTarget(u)}
@@ -763,6 +813,11 @@ export default function UserManagement({ currentUser }) {
                     </div>
                 )}
             </div>
+
+            {/* PAGINATION */}
+            {!loading && !loadError && (
+                <Pagination pagination={pagination} onPageChange={handlePageChange} />
+            )}
 
             {formModal && (
                 <UserFormModal

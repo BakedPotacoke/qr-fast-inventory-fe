@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     Search01Icon,
@@ -15,19 +15,23 @@ import {
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/transactions`;
-const PAGE_LIMIT = 15;
+const API_URL      = `${import.meta.env.VITE_API_URL}/api/transactions`;
+// GET /api/transactions/summary → { data: { total, dipinjam, selesai } }
+const SUMMARY_URL  = `${API_URL}/summary`;
+// GET /api/items/kategori → { data: string[] }
+const CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/api/items/kategori`;
+const PAGE_LIMIT   = 15;
 
 const STATUS_OPTIONS = [
     { value: 'dipinjam', label: 'Dipinjam' },
-    { value: 'selesai', label: 'Selesai' },
+    { value: 'selesai',  label: 'Selesai'  },
 ];
 
 const SORT_OPTIONS = [
     { key: 'terbaru', label: 'Waktu Pinjam Terbaru' },
     { key: 'terlama', label: 'Waktu Pinjam Terlama' },
-    { key: 'az', label: 'Nama Barang A-Z' },
-    { key: 'za', label: 'Nama Barang Z-A' },
+    { key: 'az',      label: 'Nama Barang A-Z'      },
+    { key: 'za',      label: 'Nama Barang Z-A'      },
 ];
 
 const formatTanggal = (value) => {
@@ -46,21 +50,25 @@ const statusStyles = (status) =>
 export default function Transaksi() {
     // ── Data halaman aktif ────────────────────────────────────────────────────
     const [transactions, setTransactions] = useState([]);
-    const [pagination, setPagination] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination,   setPagination]   = useState(null);
+    const [currentPage,  setCurrentPage]  = useState(1);
+
+    // ── Statistik global — dari endpoint ringkasan, bukan data halaman aktif ─
+    const [summary, setSummary] = useState({ total: 0, dipinjam: 0, selesai: 0 });
 
     // ── UI state ──────────────────────────────────────────────────────────────
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [statusFilter, setStatusFilter] = useState('semua');
+    const [isLoading,      setIsLoading]      = useState(true);
+    const [error,          setError]          = useState(null);
+    const [statusFilter,   setStatusFilter]   = useState('semua');
     const [activeKategori, setActiveKategori] = useState('semua');
-    const [sortBy, setSortBy] = useState('terbaru');
-    const [search, setSearch] = useState('');
-    const [processingId, setProcessingId] = useState(null);
-    const [toast, setToast] = useState(null);
+    const [sortBy,         setSortBy]         = useState('terbaru');
+    const [search,         setSearch]         = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [processingId,   setProcessingId]   = useState(null);
+    const [toast,          setToast]          = useState(null);
 
-    // Daftar kategori unik — dikumpulkan dari semua data yang sudah di-load
-    const [allKategori, setAllKategori] = useState(new Set());
+    // Daftar kategori dari endpoint khusus — tidak dikumpulkan dari data halaman
+    const [kategoriOptions, setKategoriOptions] = useState([]);
 
     const authHeaders = () => {
         const token = localStorage.getItem('token');
@@ -70,32 +78,81 @@ export default function Transaksi() {
         };
     };
 
-    const fetchTransactions = useCallback(async (page = 1) => {
+    // ── Fetch ringkasan global ────────────────────────────────────────────────
+    // Dipanggil saat mount dan setelah perubahan status lewat handleStatusChange
+    // agar stat cards & tab counts selalu akurat.
+    const fetchSummary = useCallback(async () => {
+        try {
+            const res  = await fetch(SUMMARY_URL, { headers: authHeaders() });
+            const body = await res.json();
+            if (res.ok) setSummary(body.data || { total: 0, dipinjam: 0, selesai: 0 });
+        } catch {
+            // Statistik tidak kritis — gagal diam-diam
+        }
+    }, []);
+
+    // ── Fetch daftar kategori unik ────────────────────────────────────────────
+    // Dipanggil sekali saat mount. Tidak perlu di-reset saat filter berubah.
+    const fetchKategori = useCallback(async () => {
+        try {
+            const res  = await fetch(CATEGORIES_URL, { headers: authHeaders() });
+            const body = await res.json();
+            if (res.ok) setKategoriOptions(body.data || []);
+        } catch {
+            // Kategori tidak kritis — gagal diam-diam
+        }
+    }, []);
+
+    // ── Fetch data halaman aktif ──────────────────────────────────────────────
+    // Semua filter (status, kategori, search) dikirim sebagai query string ke server.
+    // Client hanya bertanggung jawab untuk sorting data yang sudah dikembalikan.
+    const fetchTransactions = useCallback(async ({ page, status, kategori, search: q, sortBy: s }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}?page=${page}&limit=${PAGE_LIMIT}`, { headers: authHeaders() });
+            const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+            if (status   && status   !== 'semua') params.set('status',   status);
+            if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+            if (q        && q.trim())             params.set('search',   q.trim());
+            params.set('sortBy', s || 'terbaru');
+
+            const res  = await fetch(`${API_URL}?${params}`, { headers: authHeaders() });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Gagal memuat data transaksi.');
-            const data = body.data || [];
-            setTransactions(data);
-            setPagination(body.pagination || null);
-            // Kumpulkan kategori dari semua halaman yang pernah di-load
-            setAllKategori((prev) => {
-                const next = new Set(prev);
-                data.forEach((t) => { if (t.kategori) next.add(t.kategori); });
-                return next;
-            });
+            setTransactions(body.data       || []);
+            setPagination(body.pagination   || null);
         } catch (err) {
             setError(err.message || 'Terjadi kesalahan saat memuat data.');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, []); // stabil — parameter filter diterima lewat argumen, bukan closure
 
+    // Debounce input search (500 ms) sebelum mengubah debouncedSearch
     useEffect(() => {
-        fetchTransactions(currentPage);
-    }, [currentPage, fetchTransactions]);
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // Fetch data saat currentPage, statusFilter, activeKategori, debouncedSearch, atau sortBy berubah
+    useEffect(() => {
+        fetchTransactions({
+            page:     currentPage,
+            status:   statusFilter,
+            kategori: activeKategori,
+            search:   debouncedSearch,
+            sortBy,
+        });
+    }, [currentPage, statusFilter, activeKategori, debouncedSearch, sortBy, fetchTransactions]);
+
+    // Fetch sekali saat mount
+    useEffect(() => {
+        fetchSummary();
+        fetchKategori();
+    }, [fetchSummary, fetchKategori]);
 
     useEffect(() => {
         if (!toast) return;
@@ -110,7 +167,7 @@ export default function Transaksi() {
 
     const handleStatusChange = async (transaction, newStatus) => {
         if (newStatus === transaction.status) return;
-        const label = STATUS_OPTIONS.find((s) => s.value === newStatus)?.label || newStatus;
+        const label     = STATUS_OPTIONS.find((s) => s.value === newStatus)?.label || newStatus;
         const confirmed = window.confirm(
             `Ubah status "${transaction.nama_barang}" (peminjam: ${transaction.peminjam}) menjadi "${label}"?`
         );
@@ -118,20 +175,31 @@ export default function Transaksi() {
 
         setProcessingId(transaction.id);
         try {
-            const res = await fetch(`${API_URL}/${transaction.id}/status`, {
-                method: 'PATCH',
+            const res  = await fetch(`${API_URL}/${transaction.id}/status`, {
+                method:  'PATCH',
                 headers: authHeaders(),
-                body: JSON.stringify({ status: newStatus }),
+                body:    JSON.stringify({ status: newStatus }),
             });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Gagal memperbarui status.');
+
+            // Optimistic update baris tanpa refetch seluruh halaman
             setTransactions((prev) =>
                 prev.map((t) =>
                     t.id === transaction.id
-                        ? { ...t, status: newStatus, waktu_kembali: newStatus === 'selesai' ? body.data?.waktu_kembali ?? new Date().toISOString() : null }
+                        ? {
+                            ...t,
+                            status:       newStatus,
+                            waktu_kembali: newStatus === 'selesai'
+                                ? (body.data?.waktu_kembali ?? new Date().toISOString())
+                                : null,
+                          }
                         : t
                 )
             );
+
+            // Refresh ringkasan agar stat cards & tab counts tetap akurat
+            fetchSummary();
             setToast({ type: 'success', text: body.message || 'Status berhasil diperbarui.' });
         } catch (err) {
             setToast({ type: 'error', text: err.message || 'Gagal memperbarui status.' });
@@ -140,56 +208,26 @@ export default function Transaksi() {
         }
     };
 
-    // ── Filter & sort pada data halaman aktif ────────────────────────────────
-    const kategoriOptions = useMemo(
-        () => [...allKategori].sort((a, b) => a.localeCompare(b, 'id')),
-        [allKategori]
-    );
+    // ── Sort sudah dilakukan server-side — langsung pakai transactions ────────
+    const filtered = transactions;
 
-    const filtered = useMemo(() => {
-        const result = transactions.filter((t) => {
-            const matchStatus = statusFilter === 'semua' || t.status === statusFilter;
-            const matchKategori = activeKategori === 'semua' || t.kategori === activeKategori;
-            const q = search.trim().toLowerCase();
-            const matchSearch =
-                !q ||
-                t.nama_barang?.toLowerCase().includes(q) ||
-                t.peminjam?.toLowerCase().includes(q) ||
-                t.sku?.toLowerCase().includes(q);
-            return matchStatus && matchKategori && matchSearch;
-        });
-
-        return [...result].sort((a, b) => {
-            switch (sortBy) {
-                case 'terlama': return new Date(a.waktu_pinjam) - new Date(b.waktu_pinjam);
-                case 'az': return (a.nama_barang || '').localeCompare(b.nama_barang || '', 'id');
-                case 'za': return (b.nama_barang || '').localeCompare(a.nama_barang || '', 'id');
-                case 'terbaru':
-                default: return new Date(b.waktu_pinjam) - new Date(a.waktu_pinjam);
-            }
-        });
-    }, [transactions, statusFilter, activeKategori, search, sortBy]);
-
-    // ── Statistik: gunakan pagination.total agar akurat lintas halaman ───────
-    const totalCount = pagination?.total ?? transactions.length;
-    // Hitung dari halaman aktif — cukup akurat untuk dashboard; tidak perlu fetch semua
-    const activeCount = transactions.filter((t) => t.status === 'dipinjam').length;
-    const selesaiCount = transactions.length - activeCount;
-
-    const statusFilters = useMemo(() => [
-        { key: 'semua',    label: 'Semua',    count: totalCount },
-        { key: 'dipinjam', label: 'Dipinjam', count: activeCount },
-        { key: 'selesai',  label: 'Selesai',  count: selesaiCount },
-    ], [totalCount, activeCount, selesaiCount]);
-
+    // ── Statistik dari API ringkasan global ───────────────────────────────────
+    // Bukan dihitung dari data halaman aktif → angka selalu akurat lintas halaman
     const stats = [
-        { key: 'total',    label: 'Total Transaksi',  value: totalCount,   icon: PackageIcon,            iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-        { key: 'dipinjam', label: 'Sedang Dipinjam',  value: activeCount,  icon: Clock01Icon,             iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200' },
-        { key: 'selesai',  label: 'Selesai',          value: selesaiCount, icon: CheckmarkCircle02Icon,   iconWrap: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+        { key: 'total',    label: 'Total Transaksi',  value: summary.total,    icon: PackageIcon,          iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+        { key: 'dipinjam', label: 'Sedang Dipinjam',  value: summary.dipinjam, icon: Clock01Icon,           iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200'           },
+        { key: 'selesai',  label: 'Selesai',          value: summary.selesai,  icon: CheckmarkCircle02Icon, iconWrap: 'bg-emerald-50 text-emerald-700 ring-emerald-200'     },
     ];
 
-    const handleStatusFilterChange = (key) => { setStatusFilter(key); setCurrentPage(1); };
-    const handleSearchChange = (e) => { setSearch(e.target.value); setCurrentPage(1); };
+    const statusFilters = useMemo(() => [
+        { key: 'semua',    label: 'Semua',    count: summary.total    },
+        { key: 'dipinjam', label: 'Dipinjam', count: summary.dipinjam },
+        { key: 'selesai',  label: 'Selesai',  count: summary.selesai  },
+    ], [summary]);
+
+    // Reset ke halaman 1 saat filter berubah
+    const handleStatusFilterChange = (key) => { setStatusFilter(key);   setCurrentPage(1); };
+    const handleSearchChange       = (e)   => { setSearch(e.target.value); }; // page reset handled by debounce effect
 
     return (
         <div>
@@ -197,7 +235,7 @@ export default function Transaksi() {
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">Kelola Transaksi</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                    {activeCount} barang sedang dipinjam dari total {totalCount} transaksi
+                    {summary.dipinjam} barang sedang dipinjam dari total {summary.total} transaksi
                 </p>
             </div>
 
@@ -239,7 +277,7 @@ export default function Transaksi() {
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                         />
                         {search && (
-                            <button type="button" onClick={() => { setSearch(''); setCurrentPage(1); }} className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Hapus pencarian">
+                            <button type="button" onClick={() => { setSearch(''); setDebouncedSearch(''); setCurrentPage(1); }} className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Hapus pencarian">
                                 <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
                             </button>
                         )}
@@ -250,7 +288,12 @@ export default function Transaksi() {
                         <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
                             <HugeiconsIcon icon={Tag01Icon} size={15} strokeWidth={2} />
                         </span>
-                        <select value={activeKategori} onChange={(e) => { setActiveKategori(e.target.value); setCurrentPage(1); }} className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10" aria-label="Filter kategori">
+                        <select
+                            value={activeKategori}
+                            onChange={(e) => { setActiveKategori(e.target.value); setCurrentPage(1); }}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Filter kategori"
+                        >
                             <option value="semua">Semua Kategori</option>
                             {kategoriOptions.map((k) => <option key={k} value={k}>{k}</option>)}
                         </select>
@@ -261,7 +304,12 @@ export default function Transaksi() {
                         <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
                             <HugeiconsIcon icon={SortByDown01Icon} size={15} strokeWidth={2} />
                         </span>
-                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10" aria-label="Urutkan">
+                        <select
+                            value={sortBy}
+                            onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Urutkan"
+                        >
                             {SORT_OPTIONS.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
                         </select>
                     </div>
@@ -272,8 +320,12 @@ export default function Transaksi() {
                     {statusFilters.map((opt) => {
                         const active = statusFilter === opt.key;
                         return (
-                            <button key={opt.key} type="button" onClick={() => handleStatusFilterChange(opt.key)}
-                                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                            <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() => handleStatusFilterChange(opt.key)}
+                                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
                                 {opt.label}
                                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                                     {opt.count}
@@ -297,7 +349,10 @@ export default function Transaksi() {
                             <HugeiconsIcon icon={Alert02Icon} size={20} strokeWidth={1.75} />
                         </div>
                         <p className="text-sm text-red-500">{error}</p>
-                        <button onClick={() => fetchTransactions(currentPage)} className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#14a2ba] hover:text-[#14a2ba]">
+                        <button
+                            onClick={() => fetchTransactions({ page: currentPage, status: statusFilter, kategori: activeKategori, search })}
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#14a2ba] hover:text-[#14a2ba]"
+                        >
                             <HugeiconsIcon icon={RefreshIcon} size={14} strokeWidth={2} />
                             Coba lagi
                         </button>
@@ -325,7 +380,9 @@ export default function Transaksi() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filtered.map((t, index) => {
-                                    const rowNumber = pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1;
+                                    const rowNumber = pagination
+                                        ? (pagination.page - 1) * pagination.limit + index + 1
+                                        : index + 1;
                                     return (
                                         <tr key={t.id} className="transition-colors hover:bg-slate-50/70">
                                             <td className="px-4 py-2.5 text-slate-500">{rowNumber}</td>

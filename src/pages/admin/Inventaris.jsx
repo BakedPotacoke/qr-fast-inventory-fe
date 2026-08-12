@@ -81,11 +81,12 @@ export default function InventarisAdmin() {
   const [summary, setSummary] = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
   // ── Filter state — dikirim ke server sebagai query params ────────────────
-  const [searchQuery, setSearchQuery]     = useState('');
-  const [activeFilter, setActiveFilter]   = useState('semua');     // status
-  const [activeKategori, setActiveKategori] = useState('semua');
-  const [sortBy, setSortBy]               = useState('terbaru');
-  const [kategoriOptions, setKategoriOptions] = useState([]);
+  const [searchQuery, setSearchQuery]                   = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter]                 = useState('semua');     // status
+  const [activeKategori, setActiveKategori]             = useState('semua');
+  const [sortBy, setSortBy]                             = useState('terbaru');
+  const [kategoriOptions, setKategoriOptions]           = useState([]);
 
   // ── Bulk delete ───────────────────────────────────────────────────────────
   const [selectedForDelete, setSelectedForDelete] = useState([]);
@@ -103,10 +104,12 @@ export default function InventarisAdmin() {
   // ── Bangun URL fetch berdasarkan state filter ────────────────────────────
   const buildUrl = useCallback((page) => {
     const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
-    if (activeFilter !== 'semua')    params.set('status', activeFilter);
-    if (activeKategori !== 'semua')  params.set('kategori', activeKategori);
+    if (activeFilter !== 'semua')                            params.set('status', activeFilter);
+    if (activeKategori !== 'semua')                          params.set('kategori', activeKategori);
+    if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
+    params.set('sortBy', sortBy);
     return `${API_URL}?${params.toString()}`;
-  }, [activeFilter, activeKategori]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy]);
 
   // ── Fetch halaman aktif ──────────────────────────────────────────────────
   const fetchItems = useCallback(async (page = 1) => {
@@ -178,36 +181,27 @@ export default function InventarisAdmin() {
     fetchKategori();
   }, [authHeaders]);
 
-  // Fetch data saat page/filter berubah
+  // Debounce input search (500 ms) sebelum mengubah debouncedSearchQuery
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch data saat page / filter status / filter kategori / debounced search query / sort berubah
   useEffect(() => {
     fetchItems(currentPage);
-  }, [currentPage, fetchItems]);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
 
   // Fetch summary saat mount
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
 
-  // ── Sort dilakukan client-side pada data halaman aktif ────────────────────
-  const filteredBarang = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    const result = barangList.filter((item) => {
-      if (!query) return true;
-      return (
-        item.nama.toLowerCase().includes(query) ||
-        item.sku.toLowerCase().includes(query)
-      );
-    });
-
-    return [...result].sort((a, b) => {
-      switch (sortBy) {
-        case 'terlama': return a.id - b.id;
-        case 'az':      return a.nama.localeCompare(b.nama, 'id');
-        case 'za':      return b.nama.localeCompare(a.nama, 'id');
-        default:        return b.id - a.id; // terbaru
-      }
-    });
-  }, [barangList, searchQuery, sortBy]);
+  // ── Sort sudah dilakukan server-side — langsung pakai barangList ─────────
+  const filteredBarang = barangList;
 
   // ── Handlers filter — reset ke halaman 1 saat filter berubah ─────────────
   const handleFilterChange = (key) => {
@@ -392,7 +386,7 @@ export default function InventarisAdmin() {
       {/* TOOLBAR */}
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Search — client-side pada halaman aktif */}
+          {/* Search — server-side dengan debounce 500 ms */}
           <div className="relative min-w-[220px] flex-1">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
               <HugeiconsIcon icon={Search01Icon} size={17} strokeWidth={2} />
@@ -401,13 +395,16 @@ export default function InventarisAdmin() {
               type="text"
               placeholder="Cari berdasarkan nama atau SKU barang..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSelectedForDelete([]);
+              }}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setDebouncedSearchQuery(''); setCurrentPage(1); setSelectedForDelete([]); }}
                 className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                 aria-label="Hapus pencarian"
               >
@@ -441,7 +438,7 @@ export default function InventarisAdmin() {
             </span>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); setSelectedForDelete([]); }}
               className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
               aria-label="Urutkan"
             >

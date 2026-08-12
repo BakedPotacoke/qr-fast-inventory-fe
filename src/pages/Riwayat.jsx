@@ -15,6 +15,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
 import { TransactionCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
+import Pagination from '../components/Pagination';
 
 // ===== BRAND =====
 const BRAND = '#14a2ba';
@@ -332,20 +333,25 @@ function FilterSortSheet({
 
 // ===== MAIN COMPONENT =====
 export default function Riwayat({ user }) {
-  const [activeFilter, setActiveFilter] = useState('semua');
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [activeFilter, setActiveFilter]                 = useState('semua');
+  const [selectedItem, setSelectedItem]                 = useState(null);
 
-  const [transaksiList, setTransaksiList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [transaksiList, setTransaksiList]               = useState([]);
+  const [pagination, setPagination]                     = useState(null);
+  const [currentPage, setCurrentPage]                   = useState(1);
+  const [loading, setLoading]                           = useState(true);
+  const [error, setError]                               = useState(null);
 
-  const [activeMonthIndex, setActiveMonthIndex] = useState(0);
+  const [activeMonthIndex, setActiveMonthIndex]         = useState(0);
 
-  // ===== State baru: search, kategori, sort =====
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeKategori, setActiveKategori] = useState('semua');
-  const [sortBy, setSortBy] = useState('terbaru');
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  // Filter & Search states
+  const [searchQuery, setSearchQuery]                   = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [activeKategori, setActiveKategori]             = useState('semua');
+  const [sortBy, setSortBy]                             = useState('terbaru');
+  const [filterSheetOpen, setFilterSheetOpen]           = useState(false);
+  const [kategoriOptions, setKategoriOptions]           = useState([]);
+  const [summary, setSummary]                           = useState({ total: 0, dipinjam: 0, selesai: 0 });
 
   const isAdmin = user?.role === 'admin';
 
@@ -363,15 +369,36 @@ export default function Riwayat({ user }) {
       .replace(',', ' ·');
   };
 
-  const fetchRiwayat = useCallback(async () => {
+  // Debounce input search (500 ms) sebelum mengubah debouncedSearchQuery
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const buildUrl = useCallback((page) => {
+    const params = new URLSearchParams({ page, limit: 15 });
+    if (activeFilter !== 'semua') params.set('status', activeFilter);
+    if (activeKategori !== 'semua') params.set('kategori', activeKategori);
+    if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
+    if (sortBy && sortBy !== 'terbaru') params.set('sortBy', sortBy);
+
+    const endpoint = isAdmin
+      ? `${import.meta.env.VITE_API_URL}/api/transactions`
+      : `${import.meta.env.VITE_API_URL}/api/transactions/me`;
+
+    return `${endpoint}?${params.toString()}`;
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, isAdmin]);
+
+  const fetchRiwayat = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/transactions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await fetch(buildUrl(page), {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -380,7 +407,7 @@ export default function Riwayat({ user }) {
 
       const data = await response.json();
 
-      const formattedData = data.data.map((item) => ({
+      const formattedData = (data.data || []).map((item) => ({
         ...item,
         raw_waktu_pinjam: item.waktu_pinjam,
         waktu_pinjam: formatTanggal(item.waktu_pinjam),
@@ -388,27 +415,76 @@ export default function Riwayat({ user }) {
       }));
 
       setTransaksiList(formattedData);
+      setPagination(data.pagination || null);
     } catch (err) {
       console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }, [buildUrl]);
+
+  // Fetch summary total per status
+  const fetchSummary = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/transactions/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.data) {
+        setSummary({
+          total: data.data.total || 0,
+          dipinjam: data.data.dipinjam || 0,
+          selesai: data.data.selesai || 0,
+        });
+      }
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  // Fetch daftar kategori unik untuk filter
+  useEffect(() => {
+    const fetchKategori = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/items/kategori`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        setKategoriOptions(body.data || []);
+      } catch (err) {
+        console.error('Gagal mengambil kategori:', err);
+      }
+    };
+    fetchKategori();
   }, []);
 
   useEffect(() => {
-    fetchRiwayat();
-  }, [fetchRiwayat]);
+    fetchRiwayat(currentPage);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, fetchRiwayat]);
 
-  // Kategori unik diambil langsung dari data transaksi yang sudah dimuat
-  // (field `kategori` sudah disertakan oleh Transaction.js findAll/findByUserId)
-  const kategoriOptions = useMemo(() => {
-    const set = new Set();
-    transaksiList.forEach((item) => {
-      if (item.kategori) set.add(item.kategori);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'id'));
-  }, [transaksiList]);
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  const handleFilterChange = (key) => {
+    setActiveFilter(key);
+    setCurrentPage(1);
+  };
+
+  const handleKategoriChange = (kategori) => {
+    setActiveKategori(kategori);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const monthData = useMemo(() => {
     const monthsMap = new Map();
@@ -437,63 +513,31 @@ export default function Riwayat({ user }) {
   const activeMonthKey = monthData[activeMonthIndex]?.key;
 
   const filters = [
-    { key: 'semua', label: 'Semua', count: transaksiList.length },
-    {
-      key: 'dipinjam',
-      label: 'Sedang Dipinjam',
-      count: transaksiList.filter((r) => r.status === 'dipinjam').length,
-    },
-    {
-      key: 'selesai',
-      label: 'Selesai',
-      count: transaksiList.filter((r) => r.status === 'selesai').length,
-    },
+    { key: 'semua', label: 'Semua', count: summary.total },
+    { key: 'dipinjam', label: 'Sedang Dipinjam', count: summary.dipinjam },
+    { key: 'selesai', label: 'Selesai', count: summary.selesai },
   ];
 
   const filteredData = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-
     const result = transaksiList.filter((item) => {
-      const matchFilter = activeFilter === 'semua' || item.status === activeFilter;
-
-      const matchKategori = activeKategori === 'semua' || item.kategori === activeKategori;
-
-      const matchSearch =
-        !query ||
-        item.nama_barang?.toLowerCase().includes(query) ||
-        item.sku?.toLowerCase().includes(query) ||
-        (isAdmin && item.peminjam?.toLowerCase().includes(query));
-
       let matchMonth = true;
       if (activeMonthKey && item.raw_waktu_pinjam) {
         const d = new Date(item.raw_waktu_pinjam);
         const sortKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         matchMonth = sortKey === activeMonthKey;
       }
-
-      return matchFilter && matchKategori && matchSearch && matchMonth;
+      return matchMonth;
     });
 
-    return [...result].sort((a, b) => {
-      switch (sortBy) {
-        case 'terlama':
-          return new Date(a.raw_waktu_pinjam) - new Date(b.raw_waktu_pinjam);
-        case 'az':
-          return a.nama_barang.localeCompare(b.nama_barang, 'id');
-        case 'za':
-          return b.nama_barang.localeCompare(a.nama_barang, 'id');
-        case 'terbaru':
-        default:
-          return new Date(b.raw_waktu_pinjam) - new Date(a.raw_waktu_pinjam);
-      }
-    });
-  }, [activeFilter, activeKategori, searchQuery, sortBy, transaksiList, activeMonthKey, isAdmin]);
+    return result;
+  }, [transaksiList, activeMonthKey]);
 
   const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru';
 
   const handleResetFilter = () => {
     setActiveKategori('semua');
     setSortBy('terbaru');
+    setCurrentPage(1);
   };
 
   return (
@@ -527,7 +571,7 @@ export default function Riwayat({ user }) {
             {searchQuery && (
               <button
                 className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-slate-600"
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setDebouncedSearchQuery(''); setCurrentPage(1); }}
                 type="button"
                 aria-label="Hapus pencarian"
               >
@@ -561,7 +605,7 @@ export default function Riwayat({ user }) {
               <button
                 key={f.key}
                 type="button"
-                onClick={() => setActiveFilter(f.key)}
+                onClick={() => handleFilterChange(f.key)}
                 className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
                   active ? 'bg-[#14a2ba] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
@@ -615,7 +659,7 @@ export default function Riwayat({ user }) {
               <TransactionCardSkeleton columns={isAdmin ? 3 : 2} />
             </SkeletonList>
           ) : error ? (
-            <GagalMuatData onRetry={fetchRiwayat} />
+            <GagalMuatData onRetry={() => fetchRiwayat(currentPage)} />
           ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -629,6 +673,12 @@ export default function Riwayat({ user }) {
               <TransaksiCard key={item.id} item={item} onClick={setSelectedItem} isAdmin={isAdmin} />
             ))
           )}
+
+          {/* ===== PAGINATION ===== */}
+          {!loading && !error && (
+            <Pagination pagination={pagination} onPageChange={handlePageChange} />
+          )}
+
           <div className="h-16" />
         </div>
       </div>
@@ -642,9 +692,9 @@ export default function Riwayat({ user }) {
         onClose={() => setFilterSheetOpen(false)}
         kategoriOptions={kategoriOptions}
         activeKategori={activeKategori}
-        onKategoriChange={setActiveKategori}
+        onKategoriChange={handleKategoriChange}
         sortBy={sortBy}
-        onSortChange={setSortBy}
+        onSortChange={(val) => { setSortBy(val); setCurrentPage(1); }}
         onReset={handleResetFilter}
       />
     </div>

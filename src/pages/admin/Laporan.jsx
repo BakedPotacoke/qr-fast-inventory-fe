@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     Search01Icon,
@@ -19,6 +19,10 @@ import {
 import Pagination from '../../components/Pagination';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/reports`;
+// GET /api/reports/summary → { data: { total, bulan_ini, perlu_perhatian, breakdown: [{ jenis_laporan, jumlah }] } }
+const SUMMARY_URL = `${API_URL}/summary`;
+// GET /api/items/kategori → { data: string[] }
+const CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/api/items/kategori`;
 const PAGE_LIMIT = 15;
 
 const SORT_OPTIONS = [
@@ -37,9 +41,9 @@ const formatTanggal = (value) => {
 };
 
 const KONDISI_STYLE = {
-    baik:   { label: 'Baik',   icon: CheckmarkCircle02Icon, className: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-    rusak:  { label: 'Rusak',  icon: AlertCircleIcon,       className: 'bg-amber-50 text-amber-700 ring-amber-200' },
-    hilang: { label: 'Hilang', icon: Alert02Icon,            className: 'bg-red-50 text-red-700 ring-red-200' },
+    baik: { label: 'Baik', icon: CheckmarkCircle02Icon, className: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    rusak: { label: 'Rusak', icon: AlertCircleIcon, className: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    hilang: { label: 'Hilang', icon: Alert02Icon, className: 'bg-red-50 text-red-700 ring-red-200' },
 };
 
 // Buat & unduh file CSV dari array data laporan
@@ -69,17 +73,27 @@ export default function Laporan() {
     const [pagination, setPagination] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
-    // ── State untuk statistik (butuh semua data, di-fetch sekali) ────────────
-    const [allReports, setAllReports] = useState([]);
+    // ── Statistik & metadata global — bukan dari data halaman aktif ──────────
+    // summary     → { total, bulan_ini, perlu_perhatian }
+    // kondisiBreakdown → { baik, rusak, hilang } untuk tab filter counts
+    const [summary, setSummary] = useState({ total: 0, bulan_ini: 0, perlu_perhatian: 0 });
+    const [kondisiBreakdown, setKondisiBreakdown] = useState({ baik: 0, rusak: 0, hilang: 0 });
+
+    // Daftar kategori dari endpoint khusus — tidak diekstrak dari data halaman
+    const [kategoriOptions, setKategoriOptions] = useState([]);
 
     // ── UI state ─────────────────────────────────────────────────────────────
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [activeKondisi, setActiveKondisi] = useState('semua');
     const [activeKategori, setActiveKategori] = useState('semua');
     const [sortBy, setSortBy] = useState('terbaru');
+    // Filter tanggal ditangani sisi client karena belum didukung endpoint backend.
+    // Untuk akurasi penuh lintas halaman, tambahkan tanggal_mulai/tanggal_akhir
+    // ke ItemReport.findAll dan teruskan lewat query string seperti filter lainnya.
     const [tanggalMulai, setTanggalMulai] = useState('');
     const [tanggalAkhir, setTanggalAkhir] = useState('');
     const [previewFoto, setPreviewFoto] = useState(null);
@@ -92,12 +106,61 @@ export default function Laporan() {
         };
     };
 
-    // Fetch halaman aktif — dipanggil ulang setiap kali currentPage berubah
-    const fetchReports = useCallback(async (page = 1) => {
+    // ── Fetch ringkasan & breakdown kondisi global ────────────────────────────
+    // Menyuplai stat cards (total / bulan ini / perlu perhatian) dan jumlah
+    // per kondisi di tab filter — semua angka akurat lintas halaman.
+    const fetchSummary = useCallback(async () => {
+        try {
+            const res = await fetch(SUMMARY_URL, { headers: authHeaders() });
+            const body = await res.json();
+            if (!res.ok) return;
+
+            const d = body.data || {};
+            setSummary({
+                total: d.total ?? 0,
+                bulan_ini: d.bulan_ini ?? 0,
+                perlu_perhatian: d.perlu_perhatian ?? 0,
+            });
+
+            // breakdown: [{ jenis_laporan: 'baik', jumlah: 50 }, ...]
+            const map = {};
+            (d.breakdown || []).forEach(({ jenis_laporan, jumlah }) => {
+                map[jenis_laporan] = jumlah;
+            });
+            setKondisiBreakdown({ baik: 0, rusak: 0, hilang: 0, ...map });
+        } catch {
+            // Statistik tidak kritis — gagal diam-diam
+        }
+    }, []);
+
+    // ── Fetch daftar kategori unik ────────────────────────────────────────────
+    // Dipanggil sekali saat mount. Tidak perlu di-reset saat filter berubah.
+    const fetchKategori = useCallback(async () => {
+        try {
+            const res = await fetch(CATEGORIES_URL, { headers: authHeaders() });
+            const body = await res.json();
+            if (res.ok) setKategoriOptions(body.data || []);
+        } catch {
+            // Kategori tidak kritis — gagal diam-diam
+        }
+    }, []);
+
+    // ── Fetch data halaman aktif ──────────────────────────────────────────────
+    // Filter jenis_laporan, kategori, search, dan tanggal (mulai & akhir) dikirim sebagai query string ke server.
+    // Client hanya bertanggung jawab untuk sorting data halaman aktif.
+    const fetchReports = useCallback(async ({ page, jenis_laporan, kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta, sortBy: s }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}?page=${page}&limit=${PAGE_LIMIT}`, { headers: authHeaders() });
+            const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+            if (jenis_laporan && jenis_laporan !== 'semua') params.set('jenis_laporan', jenis_laporan);
+            if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+            if (q && q.trim()) params.set('search', q.trim());
+            if (tm && tm.trim()) params.set('tanggal_mulai', tm.trim());
+            if (ta && ta.trim()) params.set('tanggal_akhir', ta.trim());
+            params.set('sortBy', s || 'terbaru');
+
+            const res = await fetch(`${API_URL}?${params}`, { headers: authHeaders() });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Gagal memuat data laporan.');
             setReports(body.data || []);
@@ -107,37 +170,54 @@ export default function Laporan() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, []); // stabil — parameter filter diterima lewat argumen, bukan closure
 
-    // Fetch semua data — hanya untuk statistik & kondisi filter count (sekali saat mount)
-    const fetchAllReports = useCallback(async () => {
-        try {
-            const res = await fetch(`${API_URL}?limit=all`, { headers: authHeaders() });
-            const body = await res.json();
-            if (res.ok) setAllReports(body.data || []);
-        } catch {
-            // Statistik tidak kritis — gagal diam-diam
-        }
-    }, []);
-
+    // Debounce input search (500 ms) sebelum mengubah debouncedSearch
     useEffect(() => {
-        fetchReports(currentPage);
-    }, [currentPage, fetchReports]);
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCurrentPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
+    // Fetch data saat currentPage, activeKondisi, activeKategori, debouncedSearch, filter tanggal, atau sortBy berubah
     useEffect(() => {
-        fetchAllReports();
-    }, [fetchAllReports]);
+        fetchReports({
+            page: currentPage,
+            jenis_laporan: activeKondisi,
+            kategori: activeKategori,
+            search: debouncedSearch,
+            tanggal_mulai: tanggalMulai,
+            tanggal_akhir: tanggalAkhir,
+            sortBy,
+        });
+    }, [currentPage, activeKondisi, activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, sortBy, fetchReports]);
+
+    // Fetch sekali saat mount
+    useEffect(() => {
+        fetchSummary();
+        fetchKategori();
+    }, [fetchSummary, fetchKategori]);
 
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Ekspor CSV: ambil semua data dari server terlebih dulu
+    // Ekspor CSV: ambil semua data dari server dengan filter server-side aktif (termasuk filter tanggal).
     const handleExportCsv = async () => {
         setIsExporting(true);
         try {
-            const res = await fetch(`${API_URL}?limit=all`, { headers: authHeaders() });
+            const params = new URLSearchParams({ all: 'true' });
+            if (activeKondisi !== 'semua') params.set('jenis_laporan', activeKondisi);
+            if (activeKategori !== 'semua') params.set('kategori', activeKategori);
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+            if (tanggalMulai.trim()) params.set('tanggal_mulai', tanggalMulai.trim());
+            if (tanggalAkhir.trim()) params.set('tanggal_akhir', tanggalAkhir.trim());
+            params.set('sortBy', sortBy);
+
+            const res = await fetch(`${API_URL}?${params}`, { headers: authHeaders() });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Gagal mengambil data untuk ekspor.');
             exportToCsv(body.data || []);
@@ -148,76 +228,28 @@ export default function Laporan() {
         }
     };
 
-    // ── Filter & sort pada data halaman aktif ────────────────────────────────
-    const kategoriOptions = useMemo(() => {
-        const unique = new Set(allReports.map((r) => r.kategori).filter(Boolean));
-        return [...unique].sort((a, b) => a.localeCompare(b, 'id'));
-    }, [allReports]);
+    // ── Sort sudah dilakukan server-side — langsung pakai reports ─────────────
+    const filtered = reports;
 
-    const filtered = useMemo(() => {
-        const result = reports.filter((r) => {
-            const q = search.trim().toLowerCase();
-            const matchSearch =
-                !q ||
-                r.nama_barang?.toLowerCase().includes(q) ||
-                r.peminjam?.toLowerCase().includes(q) ||
-                r.kategori?.toLowerCase().includes(q);
-            const matchKondisi = activeKondisi === 'semua' || r.jenis_laporan === activeKondisi;
-            const matchKategori = activeKategori === 'semua' || r.kategori === activeKategori;
-            const tanggalLaporan = r.created_at ? r.created_at.slice(0, 10) : null;
-            const matchMulai = !tanggalMulai || (tanggalLaporan && tanggalLaporan >= tanggalMulai);
-            const matchAkhir = !tanggalAkhir || (tanggalLaporan && tanggalLaporan <= tanggalAkhir);
-            return matchSearch && matchKondisi && matchKategori && matchMulai && matchAkhir;
-        });
-
-        return [...result].sort((a, b) => {
-            switch (sortBy) {
-                case 'terlama': return new Date(a.created_at) - new Date(b.created_at);
-                case 'az': return (a.nama_barang || '').localeCompare(b.nama_barang || '', 'id');
-                case 'za': return (b.nama_barang || '').localeCompare(a.nama_barang || '', 'id');
-                case 'terbaru':
-                default: return new Date(b.created_at) - new Date(a.created_at);
-            }
-        });
-    }, [reports, search, activeKondisi, activeKategori, tanggalMulai, tanggalAkhir, sortBy]);
-
-    // ── Statistik (dari allReports supaya akurat lintas halaman) ─────────────
-    const bulanIniCount = useMemo(() => {
-        const now = new Date();
-        return allReports.filter((r) => {
-            if (!r.created_at) return false;
-            const d = new Date(r.created_at);
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).length;
-    }, [allReports]);
-
-    const perluPerhatianCount = useMemo(
-        () => allReports.filter((r) => r.jenis_laporan === 'rusak' || r.jenis_laporan === 'hilang').length,
-        [allReports]
-    );
-
-    const totalCount = pagination?.total ?? allReports.length;
-
-    const kondisiFilters = useMemo(() => {
-        const countBy = (jenis) => allReports.filter((r) => r.jenis_laporan === jenis).length;
-        return [
-            { key: 'semua',  label: 'Semua',  count: allReports.length },
-            { key: 'baik',   label: 'Baik',   count: countBy('baik') },
-            { key: 'rusak',  label: 'Rusak',  count: countBy('rusak') },
-            { key: 'hilang', label: 'Hilang', count: countBy('hilang') },
-        ];
-    }, [allReports]);
-
+    // ── Statistik dari API ringkasan global ───────────────────────────────────
     const stats = [
-        { key: 'total',           label: 'Total Laporan',      value: totalCount,          icon: PackageIcon,      iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-        { key: 'bulan-ini',       label: 'Laporan Bulan Ini',  value: bulanIniCount,       icon: Calendar03Icon,   iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200' },
-        { key: 'perlu-perhatian', label: 'Kondisi Rusak/Hilang', value: perluPerhatianCount, icon: AlertCircleIcon, iconWrap: 'bg-red-50 text-red-700 ring-red-200' },
+        { key: 'total', label: 'Total Laporan', value: summary.total, icon: PackageIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+        { key: 'bulan-ini', label: 'Laporan Bulan Ini', value: summary.bulan_ini, icon: Calendar03Icon, iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200' },
+        { key: 'perlu-perhatian', label: 'Kondisi Rusak/Hilang', value: summary.perlu_perhatian, icon: AlertCircleIcon, iconWrap: 'bg-red-50 text-red-700 ring-red-200' },
     ];
 
-    // Reset ke halaman 1 saat kondisi/kategori filter berubah (filter ini akan berpengaruh ke tampilan)
+    // Tab filter kondisi — jumlah dari breakdown global, bukan dari halaman aktif
+    const kondisiFilters = useMemo(() => [
+        { key: 'semua', label: 'Semua', count: summary.total },
+        { key: 'baik', label: 'Baik', count: kondisiBreakdown.baik },
+        { key: 'rusak', label: 'Rusak', count: kondisiBreakdown.rusak },
+        { key: 'hilang', label: 'Hilang', count: kondisiBreakdown.hilang },
+    ], [summary.total, kondisiBreakdown]);
+
+    // Reset ke halaman 1 saat filter berubah
     const handleKondisiChange = (key) => { setActiveKondisi(key); setCurrentPage(1); };
     const handleKategoriChange = (e) => { setActiveKategori(e.target.value); setCurrentPage(1); };
-    const handleSearchChange = (e) => { setSearch(e.target.value); setCurrentPage(1); };
+    const handleSearchChange = (e) => { setSearch(e.target.value); }; // page reset handled by debounce effect
 
     return (
         <div>
@@ -230,7 +262,7 @@ export default function Laporan() {
                 <button
                     type="button"
                     onClick={handleExportCsv}
-                    disabled={isExporting || totalCount === 0}
+                    disabled={isExporting || summary.total === 0}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] active:scale-[0.98] disabled:opacity-50"
                 >
                     <HugeiconsIcon icon={isExporting ? Loading03Icon : FileDownloadIcon} size={16} strokeWidth={2} className={isExporting ? 'animate-spin' : ''} />
@@ -269,7 +301,7 @@ export default function Laporan() {
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                         />
                         {search && (
-                            <button type="button" onClick={() => { setSearch(''); setCurrentPage(1); }} className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Hapus pencarian">
+                            <button type="button" onClick={() => { setSearch(''); setDebouncedSearch(''); setCurrentPage(1); }} className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600" aria-label="Hapus pencarian">
                                 <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={2.5} />
                             </button>
                         )}
@@ -280,7 +312,12 @@ export default function Laporan() {
                         <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
                             <HugeiconsIcon icon={Tag01Icon} size={15} strokeWidth={2} />
                         </span>
-                        <select value={activeKategori} onChange={handleKategoriChange} className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10" aria-label="Filter kategori">
+                        <select
+                            value={activeKategori}
+                            onChange={handleKategoriChange}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Filter kategori"
+                        >
                             <option value="semua">Semua Kategori</option>
                             {kategoriOptions.map((k) => <option key={k} value={k}>{k}</option>)}
                         </select>
@@ -291,7 +328,12 @@ export default function Laporan() {
                         <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
                             <HugeiconsIcon icon={SortByDown01Icon} size={15} strokeWidth={2} />
                         </span>
-                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10" aria-label="Urutkan">
+                        <select
+                            value={sortBy}
+                            onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Urutkan"
+                        >
                             {SORT_OPTIONS.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
                         </select>
                     </div>
@@ -310,8 +352,12 @@ export default function Laporan() {
                     {kondisiFilters.map((f) => {
                         const active = activeKondisi === f.key;
                         return (
-                            <button key={f.key} type="button" onClick={() => handleKondisiChange(f.key)}
-                                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                            <button
+                                key={f.key}
+                                type="button"
+                                onClick={() => handleKondisiChange(f.key)}
+                                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
                                 {f.label}
                                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                                     {f.count}
@@ -335,7 +381,10 @@ export default function Laporan() {
                             <HugeiconsIcon icon={Alert02Icon} size={20} strokeWidth={1.75} />
                         </div>
                         <p className="text-sm text-red-500">{error}</p>
-                        <button onClick={() => fetchReports(currentPage)} className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#14a2ba] hover:text-[#14a2ba]">
+                        <button
+                            onClick={() => fetchReports({ page: currentPage, jenis_laporan: activeKondisi, kategori: activeKategori, search })}
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-[#14a2ba] hover:text-[#14a2ba]"
+                        >
                             <HugeiconsIcon icon={RefreshIcon} size={14} strokeWidth={2} />
                             Coba lagi
                         </button>
@@ -369,7 +418,9 @@ export default function Laporan() {
                                         label: r.jenis_laporan ?? '-', icon: AlertCircleIcon,
                                         className: 'bg-slate-100 text-slate-600 ring-slate-200',
                                     };
-                                    const rowNumber = pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1;
+                                    const rowNumber = pagination
+                                        ? (pagination.page - 1) * pagination.limit + index + 1
+                                        : index + 1;
                                     return (
                                         <tr key={r.id} className="transition-colors hover:bg-slate-50/70">
                                             <td className="px-4 py-2.5 text-slate-500">{rowNumber}</td>

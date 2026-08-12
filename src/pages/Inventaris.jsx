@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Search01Icon,
@@ -12,6 +12,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
 import { ListCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
+import Pagination from '../components/Pagination';
 
 // ===== BRAND =====
 const BRAND = '#14a2ba';
@@ -405,24 +406,46 @@ function FilterSortSheet({
   );
 }
 export default function Inventaris() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('semua');
-  const [activeKategori, setActiveKategori] = useState('semua');
-  const [sortBy, setSortBy] = useState('terbaru');
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const [kategoriOptions, setKategoriOptions] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [barangList, setBarangList] = useState([]);
+  const [searchQuery, setSearchQuery]                   = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter]                 = useState('semua');
+  const [activeKategori, setActiveKategori]             = useState('semua');
+  const [sortBy, setSortBy]                             = useState('terbaru');
+  const [filterSheetOpen, setFilterSheetOpen]           = useState(false);
+  const [kategoriOptions, setKategoriOptions]           = useState([]);
+  const [selectedItem, setSelectedItem]                 = useState(null);
+  const [barangList, setBarangList]                     = useState([]);
+  const [pagination, setPagination]                     = useState(null);
+  const [currentPage, setCurrentPage]                   = useState(1);
+  const [summary, setSummary]                           = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
-  const fetchItems = useCallback(async () => {
+  // Debounce input search (500 ms) sebelum mengubah debouncedSearchQuery
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const buildUrl = useCallback((page) => {
+    const params = new URLSearchParams({ page, limit: 15 });
+    if (activeFilter !== 'semua') params.set('status', activeFilter);
+    if (activeKategori !== 'semua') params.set('kategori', activeKategori);
+    if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
+    params.set('sortBy', sortBy);
+    return `${import.meta.env.VITE_API_URL}/api/items?${params.toString()}`;
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy]);
+
+  const fetchItems = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/items`, {
+      const response = await fetch(buildUrl(page), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -432,7 +455,7 @@ export default function Inventaris() {
       }
       const data = await response.json();
 
-      const mappedItems = data.data.map(item => {
+      const mappedItems = (data.data || []).map(item => {
         let formattedDate = null;
         if (item.waktu_pinjam) {
           const dateObj = new Date(item.waktu_pinjam);
@@ -452,17 +475,52 @@ export default function Inventaris() {
       });
 
       setBarangList(mappedItems);
+      setPagination(data.pagination || null);
     } catch (err) {
       console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }, [buildUrl]);
+
+  // Fetch summary counts untuk tabs status filter
+  const fetchSummary = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const statuses = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
+      const baseUrl = `${import.meta.env.VITE_API_URL}/api/items`;
+
+      const [totalRes, ...statusRes] = await Promise.all([
+        fetch(`${baseUrl}?page=1&limit=1`, { headers }),
+        ...statuses.map((s) => fetch(`${baseUrl}?page=1&limit=1&status=${s}`, { headers })),
+      ]);
+
+      const [totalBody, ...statusBodies] = await Promise.all([
+        totalRes.json(),
+        ...statusRes.map((r) => r.json()),
+      ]);
+
+      setSummary({
+        total: totalBody.pagination?.total ?? 0,
+        tersedia: statusBodies[0].pagination?.total ?? 0,
+        dipinjam: statusBodies[1].pagination?.total ?? 0,
+        rusak: statusBodies[2].pagination?.total ?? 0,
+        hilang: statusBodies[3].pagination?.total ?? 0,
+      });
+    } catch {
+      // summary non-critical
+    }
   }, []);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    fetchItems(currentPage);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   // Ambil daftar kategori unik sekali saja untuk isi dropdown filter
   useEffect(() => {
@@ -482,63 +540,38 @@ export default function Inventaris() {
     fetchKategori();
   }, []);
 
+  const handleFilterChange = (key) => {
+    setActiveFilter(key);
+    setCurrentPage(1);
+  };
+
+  const handleKategoriChange = (kategori) => {
+    setActiveKategori(kategori);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const filters = [
-    { key: 'semua', label: 'Semua', count: barangList.length },
-    {
-      key: 'tersedia',
-      label: 'Tersedia',
-      count: barangList.filter((b) => b.status === 'tersedia').length,
-    },
-    {
-      key: 'dipinjam',
-      label: 'Dipinjam',
-      count: barangList.filter((b) => b.status === 'dipinjam').length,
-    },
-    {
-      key: 'rusak',
-      label: 'Rusak',
-      count: barangList.filter((b) => b.status === 'rusak').length,
-    },
-    {
-      key: 'hilang',
-      label: 'Hilang',
-      count: barangList.filter((b) => b.status === 'hilang').length,
-    },
+    { key: 'semua', label: 'Semua', count: summary.total },
+    { key: 'tersedia', label: 'Tersedia', count: summary.tersedia },
+    { key: 'dipinjam', label: 'Dipinjam', count: summary.dipinjam },
+    { key: 'rusak', label: 'Rusak', count: summary.rusak },
+    { key: 'hilang', label: 'Hilang', count: summary.hilang },
   ];
 
-  const filteredBarang = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    const result = barangList.filter((item) => {
-      const matchSearch =
-        item.nama.toLowerCase().includes(query) ||
-        item.sku.toLowerCase().includes(query);
-      const matchStatus =
-        activeFilter === 'semua' || item.status === activeFilter;
-      const matchKategori =
-        activeKategori === 'semua' || item.kategori === activeKategori;
-      return matchSearch && matchStatus && matchKategori;
-    });
-
-    return [...result].sort((a, b) => {
-      switch (sortBy) {
-        case 'terlama':
-          return a.id - b.id;
-        case 'az':
-          return a.nama.localeCompare(b.nama, 'id');
-        case 'za':
-          return b.nama.localeCompare(a.nama, 'id');
-        case 'terbaru':
-        default:
-          return b.id - a.id;
-      }
-    });
-  }, [searchQuery, activeFilter, activeKategori, sortBy, barangList]);
+  // ── Sort sudah dilakukan server-side — langsung pakai barangList ─────────
+  const filteredBarang = barangList;
 
   const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru';
 
   const handleResetFilter = () => {
     setActiveKategori('semua');
     setSortBy('terbaru');
+    setCurrentPage(1);
   };
 
   return (
@@ -550,7 +583,7 @@ export default function Inventaris() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Inventaris</h1>
-            <p className="mt-1 text-sm text-slate-500">{barangList.length} total barang terdaftar</p>
+            <p className="mt-1 text-sm text-slate-500">{pagination ? pagination.total : summary.total} total barang terdaftar</p>
           </div>
         </div>
 
@@ -570,7 +603,7 @@ export default function Inventaris() {
             {searchQuery && (
               <button
                 className="absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-slate-600"
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setDebouncedSearchQuery(''); setCurrentPage(1); }}
                 type="button"
                 aria-label="Hapus pencarian"
               >
@@ -609,7 +642,7 @@ export default function Inventaris() {
                     ? { backgroundColor: BRAND, color: '#fff' }
                     : { backgroundColor: '#f1f5f9', color: '#475569' }
                 }
-                onClick={() => setActiveFilter(f.key)}
+                onClick={() => handleFilterChange(f.key)}
                 type="button"
               >
                 {f.label}
@@ -635,7 +668,7 @@ export default function Inventaris() {
               <ListCardSkeleton thumbnailSize={64} thumbnailShape="square" lines={2} showBadge />
             </SkeletonList>
           ) : error ? (
-            <GagalMuatData onRetry={fetchItems} />
+            <GagalMuatData onRetry={() => fetchItems(currentPage)} />
           ) : filteredBarang.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
@@ -653,6 +686,12 @@ export default function Inventaris() {
               />
             ))
           )}
+
+          {/* ===== PAGINATION ===== */}
+          {!loading && !error && (
+            <Pagination pagination={pagination} onPageChange={handlePageChange} />
+          )}
+
           <div className="h-20" />
         </div>
       </div>
@@ -668,9 +707,9 @@ export default function Inventaris() {
         onClose={() => setFilterSheetOpen(false)}
         kategoriOptions={kategoriOptions}
         activeKategori={activeKategori}
-        onKategoriChange={setActiveKategori}
+        onKategoriChange={handleKategoriChange}
         sortBy={sortBy}
-        onSortChange={setSortBy}
+        onSortChange={(val) => { setSortBy(val); setCurrentPage(1); }}
         onReset={handleResetFilter}
       />
     </div>
