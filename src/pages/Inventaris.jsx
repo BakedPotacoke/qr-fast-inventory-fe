@@ -9,10 +9,12 @@ import {
   Clock01Icon,
   Tag01Icon,
   CheckmarkCircle01Icon,
+  ArrowRight01Icon,
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
 import { ListCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 import Pagination from '../components/Pagination';
+import { useImageViewer } from '../components/ImageViewer';
 
 // ===== BRAND =====
 const BRAND = '#14a2ba';
@@ -31,28 +33,24 @@ function FontLoader() {
 const STATUS_CONFIG = {
   tersedia: {
     label: 'Tersedia',
-    dotColor: '#16a34a',
     bgColor: '#f0fdf4',
     textColor: '#15803d',
     borderColor: '#bbf7d0',
   },
   dipinjam: {
     label: 'Sedang Dipinjam',
-    dotColor: '#d97706',
     bgColor: '#fffbeb',
     textColor: '#b45309',
     borderColor: '#fde68a',
   },
   rusak: {
     label: 'Rusak',
-    dotColor: '#dc2626',
     bgColor: '#fef2f2',
     textColor: '#b91c1c',
     borderColor: '#fecaca',
   },
   hilang: {
     label: 'Hilang',
-    dotColor: '#64748b',
     bgColor: '#f8fafc',
     textColor: '#475569',
     borderColor: '#e2e8f0',
@@ -61,7 +59,6 @@ const STATUS_CONFIG = {
 
 const FALLBACK_STATUS = {
   label: 'Tidak diketahui',
-  dotColor: '#94a3b8',
   bgColor: '#f1f5f9',
   textColor: '#475569',
   borderColor: '#e2e8f0',
@@ -93,54 +90,88 @@ const SORT_OPTIONS = [
   { key: 'za', label: 'Nama Z-A' },
 ];
 
-// ===== ITEM CARD (Versi Bersih untuk Pegawai) =====
+// ===== ITEM CARD (Versi Modern & Interactive) =====
 function BarangCard({ item, onClick }) {
   const status = getStatusConfig(item.status);
+  const { openViewer } = useImageViewer();
+
+  const handleThumbnailClick = (e) => {
+    if (item.gambar) {
+      e.stopPropagation();
+      const imgUrl = item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`;
+      openViewer(imgUrl);
+    }
+  };
 
   return (
     <button
-      className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left transition-all hover:border-slate-200 hover:shadow-sm active:scale-[0.99]"
+      className="group relative flex w-full items-center gap-3.5 rounded-2xl sm:rounded-3xl border border-slate-100 bg-white p-3 sm:p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#14a2ba]/30 hover:shadow-md active:translate-y-0 active:scale-[0.99]"
       onClick={() => onClick(item)}
       type="button"
     >
       {/* Thumbnail */}
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+      <div
+        className="group/thumb relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 transition-all hover:ring-[#14a2ba]/40"
+        onClick={handleThumbnailClick}
+        title={item.gambar ? 'Klik untuk memperbesar gambar' : undefined}
+      >
         {item.gambar ? (
-          <img
-            src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
-            alt={item.nama}
-            className="h-full w-full object-cover"
-          />
+          <>
+            <img
+              src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
+              alt={item.nama}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover/thumb:scale-110"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
+              <HugeiconsIcon icon={Search01Icon} size={16} className="text-white drop-shadow-md" strokeWidth={2.5} />
+            </div>
+          </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-slate-400">
-            <HugeiconsIcon icon={PackageIcon} size={22} strokeWidth={1.5} />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-slate-50 text-slate-400">
+            <HugeiconsIcon icon={PackageIcon} size={24} strokeWidth={1.5} />
           </div>
         )}
       </div>
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-slate-900">{item.nama}</p>
-        <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-          <HugeiconsIcon icon={BarCode01Icon} size={12} strokeWidth={2} />
-          {item.sku}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm sm:text-base font-bold text-slate-900 transition-colors group-hover:text-[#14a2ba]">
+            {item.nama}
+          </p>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-all duration-200 group-hover:bg-[#e6f6f9] group-hover:text-[#14a2ba] group-hover:translate-x-0.5">
+            <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2.5} />
+          </div>
+        </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-500">
+            <HugeiconsIcon icon={BarCode01Icon} size={11} strokeWidth={2} className="text-slate-400" />
+            {item.sku}
+          </span>
+          {item.kategori && (
+            <span className="inline-flex items-center rounded-md bg-slate-100/70 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
+              {item.kategori}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
           <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+            className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
             style={{
               background: status.bgColor,
               color: status.textColor,
               border: `1px solid ${status.borderColor}`,
             }}
           >
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: status.dotColor }} />
             {status.label}
           </span>
 
           {item.status === 'dipinjam' && item.waktu_pinjam && (
-            <span className="truncate text-[11px] text-slate-400">{item.waktu_pinjam}</span>
+            <span className="truncate text-[11px] font-medium text-slate-400">
+              {item.waktu_pinjam}
+            </span>
           )}
         </div>
       </div>
@@ -152,6 +183,11 @@ function BarangCard({ item, onClick }) {
 function DetailModal({ item, onClose }) {
   if (!item) return null;
   const status = getStatusConfig(item.status);
+  const { openViewer } = useImageViewer();
+
+  const imgUrl = item.gambar
+    ? (item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`)
+    : null;
 
   return (
     <div
@@ -176,14 +212,24 @@ function DetailModal({ item, onClose }) {
         </button>
 
         {/* Thumbnail large */}
-        <div className="relative mx-5 mt-5 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+        <div
+          className={`group relative mx-5 mt-5 shrink-0 overflow-hidden rounded-2xl bg-slate-100 ${imgUrl ? 'cursor-pointer' : ''}`}
+          onClick={() => imgUrl && openViewer(imgUrl)}
+        >
           {item.gambar ? (
-            <img
-              src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
-              alt={item.nama}
-              className="block w-full object-contain"
-              style={{ maxHeight: '70vh' }}
-            />
+            <>
+              <img
+                src={imgUrl}
+                alt={item.nama}
+                className="block w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                style={{ maxHeight: '70vh' }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <span className="rounded-full bg-slate-900/80 px-3 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-xs">
+                  Klik untuk memperbesar
+                </span>
+              </div>
+            </>
           ) : (
             <div className="flex h-40 w-full flex-col items-center justify-center gap-2 text-slate-400">
               <HugeiconsIcon icon={PackageIcon} size={32} strokeWidth={1.5} />
@@ -196,14 +242,13 @@ function DetailModal({ item, onClose }) {
         <div className="mx-5 mt-5">
           <h2 className="text-xl font-bold leading-snug text-slate-900">{item.nama}</h2>
           <span
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+            className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium"
             style={{
               background: status.bgColor,
               color: status.textColor,
               border: `1px solid ${status.borderColor}`,
             }}
           >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.dotColor }} />
             {status.label}
           </span>
         </div>
@@ -596,7 +641,7 @@ export default function Inventaris() {
   const filters = [
     { key: 'semua', label: 'Semua', count: filteredSummary.total },
     { key: 'tersedia', label: 'Tersedia', count: filteredSummary.tersedia },
-    { key: 'dipinjam', label: 'Dipinjam', count: filteredSummary.dipinjam },
+    { key: 'dipinjam', label: 'Sedang Dipinjam', count: filteredSummary.dipinjam },
     { key: 'rusak', label: 'Rusak', count: filteredSummary.rusak },
     { key: 'hilang', label: 'Hilang', count: filteredSummary.hilang },
   ];

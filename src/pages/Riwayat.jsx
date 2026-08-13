@@ -44,21 +44,17 @@ const SORT_OPTIONS = [
 ];
 
 // ===== STATUS CONFIG =====
-// "dipinjam" dipetakan ke warna brand (#14a2ba) karena itu status aktif/utama,
-// "selesai" tetap hijau sebagai warna semantik universal untuk selesai/berhasil.
 const STATUS_CONFIG = {
   dipinjam: {
     label: 'Sedang Dipinjam',
-    dot: 'bg-[#14a2ba]',
-    badge: 'bg-[#e6f6f9] text-[#0d7e91] border-[#b9e6ec]',
-    iconWrap: 'bg-[#e6f6f9] text-[#14a2ba]',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    iconWrap: 'bg-amber-50 text-amber-600',
     icon: ArrowDown01Icon,
     accent: '#d97706',
     accentWeight: 700,
   },
   selesai: {
     label: 'Selesai',
-    dot: 'bg-emerald-500',
     badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     iconWrap: 'bg-emerald-50 text-emerald-600',
     icon: ArrowUp01Icon,
@@ -67,7 +63,7 @@ const STATUS_CONFIG = {
   },
 };
 
-// ===== TRANSACTION CARD =====
+// ===== TRANSACTION CARD (Versi Modern & Interactive) =====
 function TransaksiCard({ item, onClick, isAdmin }) {
   const status = STATUS_CONFIG[item.status];
 
@@ -75,46 +71,57 @@ function TransaksiCard({ item, onClick, isAdmin }) {
     <button
       type="button"
       onClick={() => onClick(item)}
-      className="w-full rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#14a2ba]/30 hover:shadow-md active:translate-y-0 sm:p-5"
+      className="group relative w-full rounded-2xl sm:rounded-3xl border border-slate-100 bg-white p-4 sm:p-5 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#14a2ba]/30 hover:shadow-md active:translate-y-0 active:scale-[0.99]"
     >
-      {/* Top row: icon + nama + status badge */}
+      {/* Top row: icon + nama + status badge + arrow */}
       <div className="flex items-start gap-3">
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${status.iconWrap}`}>
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105 ${status.iconWrap}`}>
           <HugeiconsIcon icon={status.icon} size={20} strokeWidth={2} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-900 sm:text-base">{item.nama_barang}</p>
-          <p className="truncate text-xs text-slate-400">{item.sku}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-sm sm:text-base font-bold text-slate-900 transition-colors group-hover:text-[#14a2ba]">
+              {item.nama_barang}
+            </p>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-all duration-200 group-hover:bg-[#e6f6f9] group-hover:text-[#14a2ba] group-hover:translate-x-0.5">
+              <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2.5} />
+            </div>
+          </div>
+          <div className="mt-1">
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-500">
+              <HugeiconsIcon icon={BarCode01Icon} size={11} strokeWidth={2} className="text-slate-400" />
+              {item.sku}
+            </span>
+          </div>
         </div>
 
         <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${status.badge}`}
+          className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${status.badge}`}
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
           {status.label}
         </span>
       </div>
 
       {/* Divider */}
-      <div className="my-4 h-px w-full bg-slate-100" />
+      <div className="my-3.5 h-px w-full bg-slate-100" />
 
       {/* Info grid */}
       <div className={`grid gap-x-4 gap-y-3 ${isAdmin ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
         {isAdmin && (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Peminjam</span>
-            <span className="text-sm font-semibold text-slate-700">{item.peminjam}</span>
+            <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Peminjam</span>
+            <span className="truncate text-xs sm:text-sm font-semibold text-slate-700">{item.peminjam}</span>
           </div>
         )}
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Waktu Pinjam</span>
-          <span className="text-sm font-semibold text-slate-700">{item.waktu_pinjam}</span>
+          <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Waktu Pinjam</span>
+          <span className="truncate text-xs sm:text-sm font-semibold text-slate-700">{item.waktu_pinjam}</span>
         </div>
         <div className={`flex flex-col gap-0.5 ${isAdmin ? 'col-span-2 sm:col-span-1' : ''}`}>
-          <span className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Pengembalian</span>
+          <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Pengembalian</span>
           <span
-            className="text-sm font-bold"
+            className="truncate text-xs sm:text-sm font-bold"
             style={{ color: status.accent, fontWeight: status.accentWeight }}
           >
             {item.waktu_kembali_label}
@@ -173,9 +180,8 @@ function DetailModal({ item, onClose, isAdmin }) {
           <div className="min-w-0">
             <h2 className="truncate text-lg font-bold text-slate-900">{item.nama_barang}</h2>
             <span
-              className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.badge}`}
+              className={`mt-1 inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.badge}`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
               {status.label}
             </span>
           </div>
