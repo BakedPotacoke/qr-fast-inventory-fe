@@ -114,7 +114,6 @@ function BarangCard({ item, onClick }) {
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-slate-400">
             <HugeiconsIcon icon={PackageIcon} size={22} strokeWidth={1.5} />
-            <span className="max-w-full truncate text-[9px] font-medium">{item.kategori}</span>
           </div>
         )}
       </div>
@@ -384,21 +383,14 @@ function FilterSortSheet({
         </div>
 
         {/* Actions */}
-        <div className="mt-8 flex gap-3 px-5">
+        <div className="mt-8 px-5">
           <button
             type="button"
             onClick={onReset}
-            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white transition"
+            className="w-full rounded-2xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
             style={{ backgroundColor: BRAND }}
           >
-            Terapkan
+            Reset
           </button>
         </div>
       </div>
@@ -417,7 +409,8 @@ export default function Inventaris() {
   const [barangList, setBarangList]                     = useState([]);
   const [pagination, setPagination]                     = useState(null);
   const [currentPage, setCurrentPage]                   = useState(1);
-  const [summary, setSummary]                           = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
+  const [globalSummary, setGlobalSummary]             = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
+  const [filteredSummary, setFilteredSummary]         = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -484,8 +477,8 @@ export default function Inventaris() {
     }
   }, [buildUrl]);
 
-  // Fetch summary counts untuk tabs status filter
-  const fetchSummary = useCallback(async () => {
+  // Fetch global summary counts (unfiltered)
+  const fetchGlobalSummary = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -502,7 +495,45 @@ export default function Inventaris() {
         ...statusRes.map((r) => r.json()),
       ]);
 
-      setSummary({
+      setGlobalSummary({
+        total: totalBody.pagination?.total ?? 0,
+        tersedia: statusBodies[0].pagination?.total ?? 0,
+        dipinjam: statusBodies[1].pagination?.total ?? 0,
+        rusak: statusBodies[2].pagination?.total ?? 0,
+        hilang: statusBodies[3].pagination?.total ?? 0,
+      });
+    } catch {
+      // summary non-critical
+    }
+  }, []);
+
+  // Fetch summary counts terfilter untuk tabs status filter (terfilter sesuai kategori & search)
+  const fetchFilteredSummary = useCallback(async ({ kategori, search: q } = {}) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const statuses = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
+      const baseUrl = `${import.meta.env.VITE_API_URL}/api/items`;
+
+      const buildSummaryParams = (status) => {
+        const params = new URLSearchParams({ page: 1, limit: 1 });
+        if (status   && status   !== 'semua') params.set('status',   status);
+        if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+        if (q        && q.trim())             params.set('search',   q.trim());
+        return params.toString();
+      };
+
+      const [totalRes, ...statusRes] = await Promise.all([
+        fetch(`${baseUrl}?${buildSummaryParams()}`, { headers }),
+        ...statuses.map((s) => fetch(`${baseUrl}?${buildSummaryParams(s)}`, { headers })),
+      ]);
+
+      const [totalBody, ...statusBodies] = await Promise.all([
+        totalRes.json(),
+        ...statusRes.map((r) => r.json()),
+      ]);
+
+      setFilteredSummary({
         total: totalBody.pagination?.total ?? 0,
         tersedia: statusBodies[0].pagination?.total ?? 0,
         dipinjam: statusBodies[1].pagination?.total ?? 0,
@@ -519,8 +550,15 @@ export default function Inventaris() {
   }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchGlobalSummary();
+  }, [fetchGlobalSummary]);
+
+  useEffect(() => {
+    fetchFilteredSummary({
+      kategori: activeKategori,
+      search:   debouncedSearchQuery,
+    });
+  }, [activeKategori, debouncedSearchQuery, fetchFilteredSummary]);
 
   // Ambil daftar kategori unik sekali saja untuk isi dropdown filter
   useEffect(() => {
@@ -556,11 +594,11 @@ export default function Inventaris() {
   };
 
   const filters = [
-    { key: 'semua', label: 'Semua', count: summary.total },
-    { key: 'tersedia', label: 'Tersedia', count: summary.tersedia },
-    { key: 'dipinjam', label: 'Dipinjam', count: summary.dipinjam },
-    { key: 'rusak', label: 'Rusak', count: summary.rusak },
-    { key: 'hilang', label: 'Hilang', count: summary.hilang },
+    { key: 'semua', label: 'Semua', count: filteredSummary.total },
+    { key: 'tersedia', label: 'Tersedia', count: filteredSummary.tersedia },
+    { key: 'dipinjam', label: 'Dipinjam', count: filteredSummary.dipinjam },
+    { key: 'rusak', label: 'Rusak', count: filteredSummary.rusak },
+    { key: 'hilang', label: 'Hilang', count: filteredSummary.hilang },
   ];
 
   // ── Sort sudah dilakukan server-side — langsung pakai barangList ─────────
@@ -583,7 +621,7 @@ export default function Inventaris() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Inventaris</h1>
-            <p className="mt-1 text-sm text-slate-500">{pagination ? pagination.total : summary.total} total barang terdaftar</p>
+            <p className="mt-1 text-sm text-slate-500">{globalSummary.total} total barang terdaftar</p>
           </div>
         </div>
 

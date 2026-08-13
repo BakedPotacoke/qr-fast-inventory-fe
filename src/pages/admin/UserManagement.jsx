@@ -503,8 +503,9 @@ export default function UserManagement({ currentUser }) {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
 
-    // ── Stats — diambil dari endpoint terpisah agar akurat lintas filter ─────
+    // ── Stats — globalStats untuk stat cards, filteredStats untuk tab counts ─
     const [globalStats, setGlobalStats] = useState({ total: 0, admin: 0, pegawai: 0 });
+    const [filteredStats, setFilteredStats] = useState({ total: 0, admin: 0, pegawai: 0 });
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
@@ -554,7 +555,7 @@ export default function UserManagement({ currentUser }) {
     }, [buildUrl, authHeaders]);
 
     // ── Fetch stats global (tanpa filter) — sekali saat mount & setelah mutasi
-    const fetchStats = useCallback(async () => {
+    const fetchGlobalStats = useCallback(async () => {
         try {
             const headers = authHeaders();
             const base = `${import.meta.env.VITE_API_URL}/api/users`;
@@ -567,6 +568,37 @@ export default function UserManagement({ currentUser }) {
                 totalRes.json(), adminRes.json(), pegawaiRes.json(),
             ]);
             setGlobalStats({
+                total:   totalBody.pagination?.total   ?? 0,
+                admin:   adminBody.pagination?.total   ?? 0,
+                pegawai: pegawaiBody.pagination?.total ?? 0,
+            });
+        } catch {
+            // Stats tidak kritis — gagal diam-diam
+        }
+    }, [authHeaders]);
+
+    // ── Fetch stats terfilter (berdasarkan kata kunci pencarian) ──────────────
+    const fetchFilteredStats = useCallback(async ({ search: q } = {}) => {
+        try {
+            const headers = authHeaders();
+            const base = `${import.meta.env.VITE_API_URL}/api/users`;
+
+            const buildParams = (role) => {
+                const params = new URLSearchParams({ page: 1, limit: 1 });
+                if (role && role !== 'semua') params.set('role', role);
+                if (q    && q.trim())         params.set('search', q.trim());
+                return params.toString();
+            };
+
+            const [totalRes, adminRes, pegawaiRes] = await Promise.all([
+                fetch(`${base}?${buildParams()}`, { headers }),
+                fetch(`${base}?${buildParams('admin')}`, { headers }),
+                fetch(`${base}?${buildParams('pegawai')}`, { headers }),
+            ]);
+            const [totalBody, adminBody, pegawaiBody] = await Promise.all([
+                totalRes.json(), adminRes.json(), pegawaiRes.json(),
+            ]);
+            setFilteredStats({
                 total:   totalBody.pagination?.total   ?? 0,
                 admin:   adminBody.pagination?.total   ?? 0,
                 pegawai: pegawaiBody.pagination?.total ?? 0,
@@ -590,10 +622,15 @@ export default function UserManagement({ currentUser }) {
         fetchUsers(currentPage);
     }, [currentPage, roleFilter, debouncedSearch, sortBy, fetchUsers]);
 
-    // Fetch stats saat mount
+    // Fetch stats global saat mount
     useEffect(() => {
-        fetchStats();
-    }, [fetchStats]);
+        fetchGlobalStats();
+    }, [fetchGlobalStats]);
+
+    // Fetch stats terfilter saat debouncedSearch berubah
+    useEffect(() => {
+        fetchFilteredStats({ search: debouncedSearch });
+    }, [debouncedSearch, fetchFilteredStats]);
 
     // ── Sort sudah dilakukan server-side — langsung pakai users ─────────────
     const filteredUsers = users;
@@ -613,7 +650,8 @@ export default function UserManagement({ currentUser }) {
             fetchUsers(1);
             flashSuccess('Pengguna berhasil ditambahkan.');
         }
-        fetchStats();
+        fetchGlobalStats();
+        fetchFilteredStats({ search: debouncedSearch });
     };
 
     const handleDeleted = (id) => {
@@ -623,7 +661,8 @@ export default function UserManagement({ currentUser }) {
         const nextPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
         setCurrentPage(nextPage);
         fetchUsers(nextPage);
-        fetchStats();
+        fetchGlobalStats();
+        fetchFilteredStats({ search: debouncedSearch });
     };
 
     const handlePageChange = (page) => {
@@ -637,11 +676,11 @@ export default function UserManagement({ currentUser }) {
         setCurrentPage(1);
     };
 
-    // Tab filter role — count dari globalStats agar akurat lintas halaman
+    // Tab filter role — count dari filteredStats agar akurat sesuai pencarian
     const roleFilters = [
-        { key: 'semua',   label: 'Semua',   count: globalStats.total },
-        { key: 'admin',   label: 'Admin',   count: globalStats.admin },
-        { key: 'pegawai', label: 'Pegawai', count: globalStats.pegawai },
+        { key: 'semua',   label: 'Semua',   count: filteredStats.total },
+        { key: 'admin',   label: 'Admin',   count: filteredStats.admin },
+        { key: 'pegawai', label: 'Pegawai', count: filteredStats.pegawai },
     ];
 
     // Kartu statistik, disamakan dengan pola StatCard di Dashboard.jsx, Inventaris.jsx & Transaksi.jsx

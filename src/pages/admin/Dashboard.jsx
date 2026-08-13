@@ -279,13 +279,6 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
-
-      <div className="mt-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <HugeiconsIcon icon={Clock01Icon} size={18} color="currentColor" strokeWidth={1.5} className="shrink-0 text-amber-700" />
-        <p className="text-sm text-amber-800">
-          <span className="font-medium">{summary?.transaksiAktif ?? 0} barang</span> sedang dipinjam dan belum dikembalikan.
-        </p>
-      </div>
     </div>
   );
 }

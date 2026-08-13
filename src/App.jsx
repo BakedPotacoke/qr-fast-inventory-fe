@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import BottomNavigation from './components/BottomNavigation'; // Eager — layout tetap, selalu dibutuhkan user login
+import { ImageViewerProvider } from './components/ImageViewer';
 import './App.css';
 
 // Auth — dimuat hanya untuk user yang belum login
@@ -131,6 +132,7 @@ function App() {
     // Suspense tunggal membungkus seluruh Routes.
     // React akan menampilkan <PageLoader /> setiap kali chunk halaman baru
     // sedang diunduh, lalu merender halaman begitu chunk tersedia.
+    <ImageViewerProvider>
     <Suspense fallback={<PageLoader />}>
       <Routes>
 
@@ -210,6 +212,7 @@ function App() {
 
       </Routes>
     </Suspense>
+    </ImageViewerProvider>
   );
 }
 

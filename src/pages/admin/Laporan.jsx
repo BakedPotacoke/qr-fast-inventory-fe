@@ -17,6 +17,7 @@ import {
     SortByDown01Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import { useImageViewer } from '../../components/ImageViewer';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/reports`;
 // GET /api/reports/summary → { data: { total, bulan_ini, perlu_perhatian, breakdown: [{ jenis_laporan, jumlah }] } }
@@ -94,9 +95,9 @@ export default function Laporan() {
     // Filter tanggal ditangani sisi client karena belum didukung endpoint backend.
     // Untuk akurasi penuh lintas halaman, tambahkan tanggal_mulai/tanggal_akhir
     // ke ItemReport.findAll dan teruskan lewat query string seperti filter lainnya.
+    const { openViewer } = useImageViewer();
     const [tanggalMulai, setTanggalMulai] = useState('');
     const [tanggalAkhir, setTanggalAkhir] = useState('');
-    const [previewFoto, setPreviewFoto] = useState(null);
 
     const authHeaders = () => {
         const token = localStorage.getItem('token');
@@ -106,12 +107,17 @@ export default function Laporan() {
         };
     };
 
-    // ── Fetch ringkasan & breakdown kondisi global ────────────────────────────
-    // Menyuplai stat cards (total / bulan ini / perlu perhatian) dan jumlah
-    // per kondisi di tab filter — semua angka akurat lintas halaman.
-    const fetchSummary = useCallback(async () => {
+    // ── Fetch ringkasan & breakdown kondisi global / terfilter ────────────────
+    // Menyuplai stat cards dan jumlah per kondisi di tab filter — menyesuaikan dengan filter aktif.
+    const fetchSummary = useCallback(async ({ kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta } = {}) => {
         try {
-            const res = await fetch(SUMMARY_URL, { headers: authHeaders() });
+            const params = new URLSearchParams();
+            if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+            if (q && q.trim()) params.set('search', q.trim());
+            if (tm && tm.trim()) params.set('tanggal_mulai', tm.trim());
+            if (ta && ta.trim()) params.set('tanggal_akhir', ta.trim());
+
+            const res = await fetch(`${SUMMARY_URL}?${params}`, { headers: authHeaders() });
             const body = await res.json();
             if (!res.ok) return;
 
@@ -125,7 +131,7 @@ export default function Laporan() {
             // breakdown: [{ jenis_laporan: 'baik', jumlah: 50 }, ...]
             const map = {};
             (d.breakdown || []).forEach(({ jenis_laporan, jumlah }) => {
-                map[jenis_laporan] = jumlah;
+                map[jenis_laporan] = Number(jumlah);
             });
             setKondisiBreakdown({ baik: 0, rusak: 0, hilang: 0, ...map });
         } catch {
@@ -194,11 +200,20 @@ export default function Laporan() {
         });
     }, [currentPage, activeKondisi, activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, sortBy, fetchReports]);
 
-    // Fetch sekali saat mount
+    // Fetch breakdown ringkasan saat activeKategori, debouncedSearch, atau filter tanggal berubah
     useEffect(() => {
-        fetchSummary();
+        fetchSummary({
+            kategori: activeKategori,
+            search: debouncedSearch,
+            tanggal_mulai: tanggalMulai,
+            tanggal_akhir: tanggalAkhir,
+        });
+    }, [activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, fetchSummary]);
+
+    // Fetch daftar kategori sekali saat mount
+    useEffect(() => {
         fetchKategori();
-    }, [fetchSummary, fetchKategori]);
+    }, [fetchKategori]);
 
     const handlePageChange = (page) => {
         setCurrentPage(page);
@@ -238,13 +253,17 @@ export default function Laporan() {
         { key: 'perlu-perhatian', label: 'Kondisi Rusak/Hilang', value: summary.perlu_perhatian, icon: AlertCircleIcon, iconWrap: 'bg-red-50 text-red-700 ring-red-200' },
     ];
 
-    // Tab filter kondisi — jumlah dari breakdown global, bukan dari halaman aktif
+    const totalFiltered = useMemo(() => {
+        return kondisiBreakdown.baik + kondisiBreakdown.rusak + kondisiBreakdown.hilang;
+    }, [kondisiBreakdown]);
+
+    // Tab filter kondisi — jumlah dari breakdown kondisi yang telah difilter
     const kondisiFilters = useMemo(() => [
-        { key: 'semua', label: 'Semua', count: summary.total },
+        { key: 'semua', label: 'Semua', count: totalFiltered },
         { key: 'baik', label: 'Baik', count: kondisiBreakdown.baik },
         { key: 'rusak', label: 'Rusak', count: kondisiBreakdown.rusak },
         { key: 'hilang', label: 'Hilang', count: kondisiBreakdown.hilang },
-    ], [summary.total, kondisiBreakdown]);
+    ], [totalFiltered, kondisiBreakdown]);
 
     // Reset ke halaman 1 saat filter berubah
     const handleKondisiChange = (key) => { setActiveKondisi(key); setCurrentPage(1); };
@@ -431,8 +450,7 @@ export default function Laporan() {
                                             </td>
                                             <td className="px-4 py-2.5 text-slate-600">{r.kategori || '-'}</td>
                                             <td className="px-4 py-2.5">
-                                                <span className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-3 text-xs font-semibold ring-1 ring-inset ${kondisi.className}`}>
-                                                    <HugeiconsIcon icon={kondisi.icon} size={14} color="currentColor" strokeWidth={1.5} />
+                                                <span className={`inline-flex items-center rounded-full py-1 px-3 text-xs font-semibold ring-1 ring-inset ${kondisi.className}`}>
                                                     {kondisi.label}
                                                 </span>
                                             </td>
@@ -441,8 +459,27 @@ export default function Laporan() {
                                             </td>
                                             <td className="px-4 py-2.5">
                                                 {r.foto_url ? (
-                                                    <button type="button" onClick={() => setPreviewFoto(r.foto_url)} className="group relative block h-12 w-12 overflow-hidden rounded-lg border border-slate-200" aria-label="Lihat bukti foto">
-                                                        <img src={r.foto_url} alt={`Bukti laporan ${r.nama_barang ?? ''}`} className="h-full w-full object-cover transition group-hover:scale-105" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const src = r.foto_url.startsWith('http') || r.foto_url.startsWith('blob:')
+                                                                ? r.foto_url
+                                                                : `${import.meta.env.VITE_API_URL}${r.foto_url}`;
+                                                            openViewer(src);
+                                                        }}
+                                                        className="group relative block h-12 w-12 overflow-hidden rounded-lg border border-slate-200 transition hover:border-[#14a2ba]"
+                                                        aria-label="Lihat bukti foto"
+                                                        title="Klik untuk lihat gambar penuh"
+                                                    >
+                                                        <img
+                                                            src={
+                                                                r.foto_url.startsWith('http') || r.foto_url.startsWith('blob:')
+                                                                    ? r.foto_url
+                                                                    : `${import.meta.env.VITE_API_URL}${r.foto_url}`
+                                                            }
+                                                            alt={`Bukti laporan ${r.nama_barang ?? ''}`}
+                                                            className="h-full w-full object-cover transition group-hover:scale-105"
+                                                        />
                                                     </button>
                                                 ) : (
                                                     <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-300">
@@ -464,18 +501,6 @@ export default function Laporan() {
             {/* PAGINATION */}
             {!isLoading && !error && (
                 <Pagination pagination={pagination} onPageChange={handlePageChange} />
-            )}
-
-            {/* MODAL PREVIEW FOTO */}
-            {previewFoto && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4" onClick={() => setPreviewFoto(null)}>
-                    <div className="relative max-h-[85vh] max-w-3xl" onClick={(e) => e.stopPropagation()}>
-                        <img src={previewFoto} alt="Pratinjau bukti foto" className="max-h-[85vh] w-auto rounded-xl object-contain shadow-2xl" />
-                        <button type="button" onClick={() => setPreviewFoto(null)} className="absolute -top-3 -right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg hover:bg-slate-100" aria-label="Tutup pratinjau">
-                            <HugeiconsIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
-                        </button>
-                    </div>
-                </div>
             )}
         </div>
     );

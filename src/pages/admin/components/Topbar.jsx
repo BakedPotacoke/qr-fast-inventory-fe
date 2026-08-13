@@ -9,7 +9,7 @@ function AvatarIcon({ nama }) {
 // ===== MAIN COMPONENT =====
 export default function AdminTopbar({ user, onMenuClick }) {
   return (
-    <header className="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-5">
+    <header className="sticky top-0 z-30 h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-5">
       <button
         type="button"
         className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"

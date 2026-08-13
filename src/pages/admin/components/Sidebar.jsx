@@ -39,11 +39,11 @@ export default function AdminSidebar({ open, onClose, onLogout }) {
 
       {/* ===== SIDEBAR ===== */}
       <aside
-        className={`admin-sidebar fixed z-40 inset-y-0 left-0 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 md:static md:translate-x-0 ${
+        className={`admin-sidebar fixed z-40 inset-y-0 left-0 w-64 h-screen bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 md:sticky md:top-0 md:shrink-0 md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between px-5 h-16 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 h-16 border-b border-slate-100 shrink-0">
           <div>
             <p className="text-sm font-bold text-slate-900 leading-none">QRFast</p>
             <p className="text-[11px] text-[#14a2ba] font-semibold mt-1">Admin Panel</p>
@@ -73,7 +73,7 @@ export default function AdminSidebar({ open, onClose, onLogout }) {
           ))}
         </nav>
 
-        <div className="px-3 py-4 border-t border-slate-100">
+        <div className="px-3 py-4 border-t border-slate-100 shrink-0">
           <button
             type="button"
             onClick={() => navigate('/')}

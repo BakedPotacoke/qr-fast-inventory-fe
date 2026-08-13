@@ -24,6 +24,7 @@ import {
   HelpCircleIcon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import { useImageViewer } from '../../components/ImageViewer';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/items`;
 const PAGE_LIMIT = 15;
@@ -68,6 +69,7 @@ const STATUS_CONFIG = {
 };
 
 export default function InventarisAdmin() {
+  const { openViewer } = useImageViewer();
   // ── Server-side data ─────────────────────────────────────────────────────
   const [barangList, setBarangList] = useState([]);
   const [pagination, setPagination] = useState(null);
@@ -75,10 +77,9 @@ export default function InventarisAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ── Summary stats — diambil sekali tanpa filter ──────────────────────────
-  // Karena filter/status server-side, kita pakai data pagination.total + per-page count
-  // untuk stats, dan fetch endpoint summary terpisah saat mount.
-  const [summary, setSummary] = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
+  // ── Summary stats — globalSummary untuk stat cards, filteredSummary untuk tab counts ──
+  const [globalSummary, setGlobalSummary]     = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
+  const [filteredSummary, setFilteredSummary] = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
   // ── Filter state — dikirim ke server sebagai query params ────────────────
   const [searchQuery, setSearchQuery]                   = useState('');
@@ -136,10 +137,9 @@ export default function InventarisAdmin() {
     }
   }, [buildUrl, authHeaders]);
 
-  // ── Fetch summary stats — sekali saat mount & setelah mutasi ────────────
-  const fetchSummary = useCallback(async () => {
+  // ── Fetch global summary stats — total keseluruhan lintas filter ─────────
+  const fetchGlobalSummary = useCallback(async () => {
     try {
-      // Ambil total per status menggunakan 5 request paralel
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const statuses = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
@@ -154,7 +154,44 @@ export default function InventarisAdmin() {
         ...statusRes.map((r) => r.json()),
       ]);
 
-      setSummary({
+      setGlobalSummary({
+        total:    totalBody.pagination?.total   ?? 0,
+        tersedia: statusBodies[0].pagination?.total ?? 0,
+        dipinjam: statusBodies[1].pagination?.total ?? 0,
+        rusak:    statusBodies[2].pagination?.total ?? 0,
+        hilang:   statusBodies[3].pagination?.total ?? 0,
+      });
+    } catch {
+      // Summary tidak kritis — gagal diam-diam
+    }
+  }, []);
+
+  // ── Fetch filtered summary stats — terfilter sesuai kategori & search ─────
+  const fetchFilteredSummary = useCallback(async ({ kategori, search: q } = {}) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const statuses = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
+
+      const buildSummaryParams = (status) => {
+        const params = new URLSearchParams({ page: 1, limit: 1 });
+        if (status   && status   !== 'semua') params.set('status',   status);
+        if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+        if (q        && q.trim())             params.set('search',   q.trim());
+        return params.toString();
+      };
+
+      const [totalRes, ...statusRes] = await Promise.all([
+        fetch(`${API_URL}?${buildSummaryParams()}`, { headers }),
+        ...statuses.map((s) => fetch(`${API_URL}?${buildSummaryParams(s)}`, { headers })),
+      ]);
+
+      const [totalBody, ...statusBodies] = await Promise.all([
+        totalRes.json(),
+        ...statusRes.map((r) => r.json()),
+      ]);
+
+      setFilteredSummary({
         total:    totalBody.pagination?.total   ?? 0,
         tersedia: statusBodies[0].pagination?.total ?? 0,
         dipinjam: statusBodies[1].pagination?.total ?? 0,
@@ -195,10 +232,18 @@ export default function InventarisAdmin() {
     fetchItems(currentPage);
   }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
 
-  // Fetch summary saat mount
+  // Fetch global summary saat mount
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchGlobalSummary();
+  }, [fetchGlobalSummary]);
+
+  // Fetch filtered summary saat activeKategori atau debouncedSearchQuery berubah
+  useEffect(() => {
+    fetchFilteredSummary({
+      kategori: activeKategori,
+      search:   debouncedSearchQuery,
+    });
+  }, [activeKategori, debouncedSearchQuery, fetchFilteredSummary]);
 
   // ── Sort sudah dilakukan server-side — langsung pakai barangList ─────────
   const filteredBarang = barangList;
@@ -232,7 +277,8 @@ export default function InventarisAdmin() {
     } else {
       setBarangList((prev) => prev.map((b) => (b.id === savedItem.id ? savedItem : b)));
     }
-    fetchSummary();
+    fetchGlobalSummary();
+    fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
     setShowForm(false);
     setItemToEdit(null);
   };
@@ -257,7 +303,8 @@ export default function InventarisAdmin() {
       const nextPage = barangList.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
       setCurrentPage(nextPage);
       fetchItems(nextPage);
-      fetchSummary();
+      fetchGlobalSummary();
+      fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -284,7 +331,8 @@ export default function InventarisAdmin() {
         : currentPage;
       setCurrentPage(nextPage);
       fetchItems(nextPage);
-      fetchSummary();
+      fetchGlobalSummary();
+      fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -318,20 +366,21 @@ export default function InventarisAdmin() {
     }
   };
 
-  // ── Stats dari summary (accurate lintas halaman) ──────────────────────────
+  // ── Stats dari global summary (tidak berubah saat filter diterapkan) ────
   const stats = [
-    { key: 'semua',      label: 'Total Barang',   count: summary.total,                      icon: PackageIcon,      iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-    { key: 'tersedia',   label: 'Tersedia',        count: summary.tersedia,                   icon: STATUS_CONFIG.tersedia.icon,  iconWrap: STATUS_CONFIG.tersedia.iconWrap },
-    { key: 'dipinjam',   label: 'Dipinjam',        count: summary.dipinjam,                   icon: STATUS_CONFIG.dipinjam.icon,  iconWrap: STATUS_CONFIG.dipinjam.iconWrap },
-    { key: 'bermasalah', label: 'Rusak / Hilang',  count: summary.rusak + summary.hilang,     icon: AlertDiamondIcon, iconWrap: STATUS_CONFIG.rusak.iconWrap },
+    { key: 'semua',      label: 'Total Barang',   count: globalSummary.total,                      icon: PackageIcon,      iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+    { key: 'tersedia',   label: 'Tersedia',        count: globalSummary.tersedia,                   icon: STATUS_CONFIG.tersedia.icon,  iconWrap: STATUS_CONFIG.tersedia.iconWrap },
+    { key: 'dipinjam',   label: 'Dipinjam',        count: globalSummary.dipinjam,                   icon: STATUS_CONFIG.dipinjam.icon,  iconWrap: STATUS_CONFIG.dipinjam.iconWrap },
+    { key: 'bermasalah', label: 'Rusak / Hilang',  count: globalSummary.rusak + globalSummary.hilang,     icon: AlertDiamondIcon, iconWrap: STATUS_CONFIG.rusak.iconWrap },
   ];
 
+  // ── Tab filter status — jumlah menyesuaikan dengan filter aktif ─────────
   const statusFilters = [
-    { key: 'semua',    label: 'Semua',    count: summary.total },
-    { key: 'tersedia', label: 'Tersedia', count: summary.tersedia },
-    { key: 'dipinjam', label: 'Dipinjam', count: summary.dipinjam },
-    { key: 'rusak',    label: 'Rusak',    count: summary.rusak },
-    { key: 'hilang',   label: 'Hilang',   count: summary.hilang },
+    { key: 'semua',    label: 'Semua',    count: filteredSummary.total },
+    { key: 'tersedia', label: 'Tersedia', count: filteredSummary.tersedia },
+    { key: 'dipinjam', label: 'Dipinjam', count: filteredSummary.dipinjam },
+    { key: 'rusak',    label: 'Rusak',    count: filteredSummary.rusak },
+    { key: 'hilang',   label: 'Hilang',   count: filteredSummary.hilang },
   ];
 
   return (
@@ -563,24 +612,40 @@ export default function InventarisAdmin() {
                       </td>
                       <td className="px-3 py-2.5 text-slate-500">{rowNumber}</td>
                       <td className="px-3 py-2.5">
-                        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
-                          {item.gambar ? (
+                        {item.gambar ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openViewer(
+                                item.gambar.startsWith('http') || item.gambar.startsWith('blob:')
+                                  ? item.gambar
+                                  : `${import.meta.env.VITE_API_URL}${item.gambar}`
+                              )
+                            }
+                            className="group relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70 transition hover:ring-[#14a2ba]"
+                            title="Klik untuk lihat gambar penuh"
+                          >
                             <img
-                              src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
+                              src={
+                                item.gambar.startsWith('http') || item.gambar.startsWith('blob:')
+                                  ? item.gambar
+                                  : `${import.meta.env.VITE_API_URL}${item.gambar}`
+                              }
                               alt={item.nama}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover transition group-hover:scale-105"
                             />
-                          ) : (
+                          </button>
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
                             <HugeiconsIcon icon={PackageIcon} size={17} className="text-slate-400" strokeWidth={1.5} />
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 font-medium text-slate-800">{item.nama}</td>
                       <td className="px-3 py-2.5 font-mono text-xs text-slate-500">{item.sku}</td>
                       <td className="px-3 py-2.5 text-slate-500">{item.kategori}</td>
                       <td className="px-3 py-2.5">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusConfig.badge}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} />
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusConfig.badge}`}>
                           {item.status}
                         </span>
                       </td>
@@ -771,6 +836,7 @@ function SkuScannerModal({ onClose, onDetected }) {
 
 // ===== FORM MODAL (Tambah & Edit) =====
 function BarangFormModal({ item, onClose, onSaved }) {
+  const { openViewer } = useImageViewer();
   const isEdit = Boolean(item);
   const [form, setForm] = useState({
     nama: item?.nama || '',
@@ -936,24 +1002,62 @@ function BarangFormModal({ item, onClose, onSaved }) {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-600">Foto Barang</label>
-            <button type="button" className="flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition hover:border-[#14a2ba] hover:bg-[#14a2ba]/5"
-              onClick={() => fileRef.current?.click()}>
-              {preview ? (
-                <img src={preview.startsWith('http') || preview.startsWith('blob:') ? preview : `${import.meta.env.VITE_API_URL}${preview}`}
-                  alt="Preview" className="h-full w-full object-cover" />
+            {(() => {
+              const resolvedSrc = preview
+                ? preview.startsWith('http') || preview.startsWith('blob:')
+                  ? preview
+                  : `${import.meta.env.VITE_API_URL}${preview}`
+                : null;
+              return preview ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openViewer(resolvedSrc)}
+                    className="group relative block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                    title="Klik untuk lihat gambar penuh"
+                  >
+                    <img
+                      src={resolvedSrc}
+                      alt="Preview"
+                      className="max-h-72 w-full object-contain"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
+                      <span className="rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white">
+                        Lihat penuh
+                      </span>
+                    </div>
+                  </button>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-[#14a2ba] hover:text-[#0f8298]"
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      Ganti foto
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-red-500 hover:text-red-600"
+                      onClick={handleRemoveImage}
+                    >
+                      Hapus foto
+                    </button>
+                  </div>
+                </>
               ) : (
-                <div className="flex flex-col items-center gap-1.5 text-slate-400">
-                  <HugeiconsIcon icon={ImageAdd02Icon} size={22} strokeWidth={1.5} />
-                  <span className="text-xs font-medium text-slate-500">Tap untuk pilih foto</span>
-                </div>
-              )}
-            </button>
+                <button
+                  type="button"
+                  className="flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition hover:border-[#14a2ba] hover:bg-[#14a2ba]/5"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <div className="flex flex-col items-center gap-1.5 text-slate-400">
+                    <HugeiconsIcon icon={ImageAdd02Icon} size={22} strokeWidth={1.5} />
+                    <span className="text-xs font-medium text-slate-500">Tap untuk pilih foto</span>
+                  </div>
+                </button>
+              );
+            })()}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFile} />
-            {preview && (
-              <button type="button" className="mt-1.5 text-xs font-semibold text-red-500 hover:text-red-600" onClick={handleRemoveImage}>
-                Hapus foto
-              </button>
-            )}
           </div>
 
           <div className="mt-2 flex gap-2">

@@ -12,6 +12,7 @@ import {
     Tag01Icon,
     SortByDown01Icon,
     Cancel01Icon,
+    Calendar03Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
 
@@ -66,6 +67,8 @@ export default function Transaksi() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [processingId,   setProcessingId]   = useState(null);
     const [toast,          setToast]          = useState(null);
+    const [tanggalMulai,   setTanggalMulai]   = useState('');
+    const [tanggalAkhir,   setTanggalAkhir]   = useState('');
 
     // Daftar kategori dari endpoint khusus — tidak dikumpulkan dari data halaman
     const [kategoriOptions, setKategoriOptions] = useState([]);
@@ -78,12 +81,18 @@ export default function Transaksi() {
         };
     };
 
-    // ── Fetch ringkasan global ────────────────────────────────────────────────
-    // Dipanggil saat mount dan setelah perubahan status lewat handleStatusChange
-    // agar stat cards & tab counts selalu akurat.
-    const fetchSummary = useCallback(async () => {
+    // ── Fetch ringkasan terfilter ─────────────────────────────────────────────
+    // Dipanggil saat filter/search/tanggal berubah & setelah perubahan status lewat handleStatusChange
+    // agar stat cards & tab counts selalu akurat sesuai filter aktif.
+    const fetchSummary = useCallback(async ({ kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta } = {}) => {
         try {
-            const res  = await fetch(SUMMARY_URL, { headers: authHeaders() });
+            const params = new URLSearchParams();
+            if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+            if (q        && q.trim())             params.set('search',        q.trim());
+            if (tm       && tm.trim())            params.set('tanggal_mulai', tm.trim());
+            if (ta       && ta.trim())            params.set('tanggal_akhir', ta.trim());
+
+            const res  = await fetch(`${SUMMARY_URL}?${params}`, { headers: authHeaders() });
             const body = await res.json();
             if (res.ok) setSummary(body.data || { total: 0, dipinjam: 0, selesai: 0 });
         } catch {
@@ -106,14 +115,16 @@ export default function Transaksi() {
     // ── Fetch data halaman aktif ──────────────────────────────────────────────
     // Semua filter (status, kategori, search) dikirim sebagai query string ke server.
     // Client hanya bertanggung jawab untuk sorting data yang sudah dikembalikan.
-    const fetchTransactions = useCallback(async ({ page, status, kategori, search: q, sortBy: s }) => {
+    const fetchTransactions = useCallback(async ({ page, status, kategori, search: q, sortBy: s, tanggal_mulai: tm, tanggal_akhir: ta }) => {
         setIsLoading(true);
         setError(null);
         try {
             const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
-            if (status   && status   !== 'semua') params.set('status',   status);
-            if (kategori && kategori !== 'semua') params.set('kategori', kategori);
-            if (q        && q.trim())             params.set('search',   q.trim());
+            if (status   && status   !== 'semua') params.set('status',        status);
+            if (kategori && kategori !== 'semua') params.set('kategori',      kategori);
+            if (q        && q.trim())             params.set('search',        q.trim());
+            if (tm       && tm.trim())            params.set('tanggal_mulai', tm.trim());
+            if (ta       && ta.trim())            params.set('tanggal_akhir', ta.trim());
             params.set('sortBy', s || 'terbaru');
 
             const res  = await fetch(`${API_URL}?${params}`, { headers: authHeaders() });
@@ -137,22 +148,33 @@ export default function Transaksi() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Fetch data saat currentPage, statusFilter, activeKategori, debouncedSearch, atau sortBy berubah
+    // Fetch data saat currentPage, statusFilter, activeKategori, debouncedSearch, tanggal, atau sortBy berubah
     useEffect(() => {
         fetchTransactions({
-            page:     currentPage,
-            status:   statusFilter,
-            kategori: activeKategori,
-            search:   debouncedSearch,
+            page:          currentPage,
+            status:        statusFilter,
+            kategori:      activeKategori,
+            search:        debouncedSearch,
             sortBy,
+            tanggal_mulai: tanggalMulai,
+            tanggal_akhir: tanggalAkhir,
         });
-    }, [currentPage, statusFilter, activeKategori, debouncedSearch, sortBy, fetchTransactions]);
+    }, [currentPage, statusFilter, activeKategori, debouncedSearch, sortBy, tanggalMulai, tanggalAkhir, fetchTransactions]);
 
-    // Fetch sekali saat mount
+    // Fetch ringkasan saat activeKategori, debouncedSearch, atau filter tanggal berubah
     useEffect(() => {
-        fetchSummary();
+        fetchSummary({
+            kategori:      activeKategori,
+            search:        debouncedSearch,
+            tanggal_mulai: tanggalMulai,
+            tanggal_akhir: tanggalAkhir,
+        });
+    }, [activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, fetchSummary]);
+
+    // Fetch daftar kategori sekali saat mount
+    useEffect(() => {
         fetchKategori();
-    }, [fetchSummary, fetchKategori]);
+    }, [fetchKategori]);
 
     useEffect(() => {
         if (!toast) return;
@@ -199,7 +221,12 @@ export default function Transaksi() {
             );
 
             // Refresh ringkasan agar stat cards & tab counts tetap akurat
-            fetchSummary();
+            fetchSummary({
+                kategori:      activeKategori,
+                search:        debouncedSearch,
+                tanggal_mulai: tanggalMulai,
+                tanggal_akhir: tanggalAkhir,
+            });
             setToast({ type: 'success', text: body.message || 'Status berhasil diperbarui.' });
         } catch (err) {
             setToast({ type: 'error', text: err.message || 'Gagal memperbarui status.' });
@@ -212,17 +239,18 @@ export default function Transaksi() {
     const filtered = transactions;
 
     // ── Statistik dari API ringkasan global ───────────────────────────────────
-    // Bukan dihitung dari data halaman aktif → angka selalu akurat lintas halaman
+    // Stat cards menampilkan total global lintas filter — tidak berubah saat filter diterapkan
     const stats = [
         { key: 'total',    label: 'Total Transaksi',  value: summary.total,    icon: PackageIcon,          iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
         { key: 'dipinjam', label: 'Sedang Dipinjam',  value: summary.dipinjam, icon: Clock01Icon,           iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200'           },
         { key: 'selesai',  label: 'Selesai',          value: summary.selesai,  icon: CheckmarkCircle02Icon, iconWrap: 'bg-emerald-50 text-emerald-700 ring-emerald-200'     },
     ];
 
+    // Tab filter status — jumlah menyesuaikan dengan filter kategori, search, dan tanggal aktif
     const statusFilters = useMemo(() => [
-        { key: 'semua',    label: 'Semua',    count: summary.total    },
-        { key: 'dipinjam', label: 'Dipinjam', count: summary.dipinjam },
-        { key: 'selesai',  label: 'Selesai',  count: summary.selesai  },
+        { key: 'semua',    label: 'Semua',    count: summary.filtered_total    ?? summary.total    },
+        { key: 'dipinjam', label: 'Dipinjam', count: summary.filtered_dipinjam ?? summary.dipinjam },
+        { key: 'selesai',  label: 'Selesai',  count: summary.filtered_selesai  ?? summary.selesai  },
     ], [summary]);
 
     // Reset ke halaman 1 saat filter berubah
@@ -313,6 +341,26 @@ export default function Transaksi() {
                             {SORT_OPTIONS.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
                         </select>
                     </div>
+
+                    {/* Rentang Tanggal Pinjam */}
+                    <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="shrink-0 text-slate-400" />
+                        <input
+                            type="date"
+                            value={tanggalMulai}
+                            onChange={(e) => { setTanggalMulai(e.target.value); setCurrentPage(1); }}
+                            className="bg-transparent text-sm text-slate-600 outline-none"
+                            aria-label="Tanggal pinjam mulai"
+                        />
+                        <span className="text-sm text-slate-400">-</span>
+                        <input
+                            type="date"
+                            value={tanggalAkhir}
+                            onChange={(e) => { setTanggalAkhir(e.target.value); setCurrentPage(1); }}
+                            className="bg-transparent text-sm text-slate-600 outline-none"
+                            aria-label="Tanggal pinjam akhir"
+                        />
+                    </div>
                 </div>
 
                 {/* TABS FILTER STATUS */}
@@ -396,13 +444,12 @@ export default function Transaksi() {
                                             <td className="px-4 py-2.5 text-slate-600">{formatTanggal(t.waktu_kembali)}</td>
                                             <td className="px-4 py-2.5">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1 text-xs font-semibold ring-1 ring-inset ${statusStyles(t.status)}`}>
-                                                        <HugeiconsIcon icon={t.status === 'dipinjam' ? PackageIcon : CheckmarkCircle02Icon} size={14} color="currentColor" strokeWidth={1.5} />
+                                                    <span className={`inline-flex items-center rounded-full py-1 px-2.5 text-xs font-semibold ring-1 ring-inset ${statusStyles(t.status)}`}>
                                                         <select
                                                             value={t.status}
                                                             disabled={processingId === t.id}
                                                             onChange={(e) => handleStatusChange(t, e.target.value)}
-                                                            className="cursor-pointer border-0 bg-transparent pr-1 text-xs font-semibold capitalize focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                                                            className="cursor-pointer border-0 bg-transparent text-xs font-semibold capitalize focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
                                                             {STATUS_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                         </select>

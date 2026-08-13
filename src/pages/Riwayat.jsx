@@ -216,6 +216,10 @@ function FilterSortSheet({
   onKategoriChange,
   sortBy,
   onSortChange,
+  tanggalMulai,
+  onTanggalMulaiChange,
+  tanggalAkhir,
+  onTanggalAkhirChange,
   onReset,
 }) {
   if (!open) return null;
@@ -308,22 +312,42 @@ function FilterSortSheet({
           </div>
         </div>
 
+        {/* Rentang Tanggal */}
+        <div className="mt-6 px-5">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Tanggal Transaksi Peminjaman</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="shrink-0 text-slate-400" />
+              <input
+                type="date"
+                value={tanggalMulai}
+                onChange={(e) => onTanggalMulaiChange(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-slate-600 outline-none"
+                aria-label="Tanggal pinjam mulai"
+              />
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="shrink-0 text-slate-400" />
+              <input
+                type="date"
+                value={tanggalAkhir}
+                onChange={(e) => onTanggalAkhirChange(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-slate-600 outline-none"
+                aria-label="Tanggal pinjam akhir"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Actions */}
-        <div className="mt-8 flex gap-3 px-5">
+        <div className="mt-8 px-5">
           <button
             type="button"
             onClick={onReset}
-            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white transition"
+            className="w-full rounded-2xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
             style={{ backgroundColor: BRAND }}
           >
-            Terapkan
+            Reset
           </button>
         </div>
       </div>
@@ -352,6 +376,8 @@ export default function Riwayat({ user }) {
   const [filterSheetOpen, setFilterSheetOpen]           = useState(false);
   const [kategoriOptions, setKategoriOptions]           = useState([]);
   const [summary, setSummary]                           = useState({ total: 0, dipinjam: 0, selesai: 0 });
+  const [tanggalMulai, setTanggalMulai]                 = useState('');
+  const [tanggalAkhir, setTanggalAkhir]                 = useState('');
 
   const isAdmin = user?.role === 'admin';
 
@@ -384,13 +410,15 @@ export default function Riwayat({ user }) {
     if (activeKategori !== 'semua') params.set('kategori', activeKategori);
     if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
     if (sortBy && sortBy !== 'terbaru') params.set('sortBy', sortBy);
+    if (tanggalMulai && tanggalMulai.trim()) params.set('tanggal_mulai', tanggalMulai.trim());
+    if (tanggalAkhir && tanggalAkhir.trim()) params.set('tanggal_akhir', tanggalAkhir.trim());
 
     const endpoint = isAdmin
       ? `${import.meta.env.VITE_API_URL}/api/transactions`
       : `${import.meta.env.VITE_API_URL}/api/transactions/me`;
 
     return `${endpoint}?${params.toString()}`;
-  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, isAdmin]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir, isAdmin]);
 
   const fetchRiwayat = useCallback(async (page = 1) => {
     setLoading(true);
@@ -424,20 +452,29 @@ export default function Riwayat({ user }) {
     }
   }, [buildUrl]);
 
-  // Fetch summary total per status
-  const fetchSummary = useCallback(async () => {
+  // Fetch summary total per status (global & terfilter)
+  const fetchSummary = useCallback(async ({ kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta } = {}) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/transactions/summary`, {
+      const params = new URLSearchParams();
+      if (kategori && kategori !== 'semua') params.set('kategori', kategori);
+      if (q        && q.trim())             params.set('search',        q.trim());
+      if (tm       && tm.trim())            params.set('tanggal_mulai', tm.trim());
+      if (ta       && ta.trim())            params.set('tanggal_akhir', ta.trim());
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/transactions/summary?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
       const data = await res.json();
       if (data.data) {
         setSummary({
-          total: data.data.total || 0,
-          dipinjam: data.data.dipinjam || 0,
-          selesai: data.data.selesai || 0,
+          total:             data.data.total || 0,
+          dipinjam:          data.data.dipinjam || 0,
+          selesai:           data.data.selesai || 0,
+          filtered_total:    data.data.filtered_total    ?? data.data.total    ?? 0,
+          filtered_dipinjam: data.data.filtered_dipinjam ?? data.data.dipinjam ?? 0,
+          filtered_selesai:  data.data.filtered_selesai  ?? data.data.selesai  ?? 0,
         });
       }
     } catch {
@@ -467,9 +504,15 @@ export default function Riwayat({ user }) {
     fetchRiwayat(currentPage);
   }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, fetchRiwayat]);
 
+  // Fetch summary terfilter saat activeKategori, debouncedSearchQuery, atau tanggal berubah
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchSummary({
+      kategori:      activeKategori,
+      search:        debouncedSearchQuery,
+      tanggal_mulai: tanggalMulai,
+      tanggal_akhir: tanggalAkhir,
+    });
+  }, [activeKategori, debouncedSearchQuery, tanggalMulai, tanggalAkhir, fetchSummary]);
 
   const handleFilterChange = (key) => {
     setActiveFilter(key);
@@ -513,9 +556,9 @@ export default function Riwayat({ user }) {
   const activeMonthKey = monthData[activeMonthIndex]?.key;
 
   const filters = [
-    { key: 'semua', label: 'Semua', count: summary.total },
-    { key: 'dipinjam', label: 'Sedang Dipinjam', count: summary.dipinjam },
-    { key: 'selesai', label: 'Selesai', count: summary.selesai },
+    { key: 'semua', label: 'Semua', count: summary.filtered_total ?? summary.total },
+    { key: 'dipinjam', label: 'Sedang Dipinjam', count: summary.filtered_dipinjam ?? summary.dipinjam },
+    { key: 'selesai', label: 'Selesai', count: summary.filtered_selesai ?? summary.selesai },
   ];
 
   const filteredData = useMemo(() => {
@@ -532,11 +575,13 @@ export default function Riwayat({ user }) {
     return result;
   }, [transaksiList, activeMonthKey]);
 
-  const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru';
+  const isFilterActive = activeKategori !== 'semua' || sortBy !== 'terbaru' || !!tanggalMulai || !!tanggalAkhir;
 
   const handleResetFilter = () => {
     setActiveKategori('semua');
     setSortBy('terbaru');
+    setTanggalMulai('');
+    setTanggalAkhir('');
     setCurrentPage(1);
   };
 
@@ -695,6 +740,10 @@ export default function Riwayat({ user }) {
         onKategoriChange={handleKategoriChange}
         sortBy={sortBy}
         onSortChange={(val) => { setSortBy(val); setCurrentPage(1); }}
+        tanggalMulai={tanggalMulai}
+        onTanggalMulaiChange={(val) => { setTanggalMulai(val); setCurrentPage(1); }}
+        tanggalAkhir={tanggalAkhir}
+        onTanggalAkhirChange={(val) => { setTanggalAkhir(val); setCurrentPage(1); }}
         onReset={handleResetFilter}
       />
     </div>
