@@ -6,7 +6,6 @@ import {
   Package02Icon,
   HistoryIcon,
   QrCode01Icon,
-  Notification03Icon,
   HelpCircleIcon,
   Logout01Icon,
   UserEdit01Icon,
@@ -402,15 +401,9 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
               onClick={() => setShowEditModal(true)}
             />
             <MenuItem
-              icon={<HugeiconsIcon icon={Notification03Icon} size={18} strokeWidth={2} />}
-              label="Notifikasi"
-              badge="Aktif"
-              onClick={() => {}}
-            />
-            <MenuItem
               icon={<HugeiconsIcon icon={HelpCircleIcon} size={18} strokeWidth={2} />}
               label="Bantuan & FAQ"
-              onClick={() => {}}
+              onClick={() => navigate('/faq')}
             />
           </div>
 

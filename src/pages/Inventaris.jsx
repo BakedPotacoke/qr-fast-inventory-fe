@@ -233,7 +233,6 @@ function DetailModal({ item, onClose }) {
           ) : (
             <div className="flex h-40 w-full flex-col items-center justify-center gap-2 text-slate-400">
               <HugeiconsIcon icon={PackageIcon} size={32} strokeWidth={1.5} />
-              <span className="text-sm font-medium">{item.kategori}</span>
             </div>
           )}
         </div>

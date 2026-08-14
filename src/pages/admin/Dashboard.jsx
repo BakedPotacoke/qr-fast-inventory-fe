@@ -53,18 +53,14 @@ const toneClasses = {
   red: "bg-red-50 text-red-700 ring-red-200",
 };
 
-function StatCard({ label, value, icon, tone, loading }) {
+function StatCard({ label, value, icon, tone }) {
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses[tone]}`}>
         <HugeiconsIcon icon={icon} size={20} color="currentColor" strokeWidth={1.5} />
       </div>
       <div>
-        {loading ? (
-          <span className="block h-7 w-12 rounded bg-slate-100 animate-pulse" />
-        ) : (
-          <p className="text-2xl font-semibold text-slate-800 leading-none">{value}</p>
-        )}
+        <p className="text-2xl font-semibold text-slate-800 leading-none">{value}</p>
         <p className="mt-1 text-xs text-slate-500">{label}</p>
       </div>
     </div>
@@ -182,7 +178,7 @@ export default function Dashboard() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <StatCard key={s.label} {...s} loading={loading} />
+          <StatCard key={s.label} {...s} />
         ))}
       </div>
 

@@ -15,6 +15,7 @@ const Profil     = lazy(() => import('./pages/Profil'));
 // Scan juga membawa html5-qrcode (~300KB); chunk-nya tidak akan diunduh
 // sebelum user membuka halaman /scan.
 const Scan       = lazy(() => import('./pages/Scan'));
+const FAQ        = lazy(() => import('./pages/Faq'));
 
 // Admin area — seluruh bagian admin (termasuk AdminLayout, Sidebar, Topbar)
 // hanya diunduh oleh user dengan role 'admin'.
@@ -24,6 +25,7 @@ const AdminInventaris     = lazy(() => import('./pages/admin/Inventaris'));
 const AdminTransaksi      = lazy(() => import('./pages/admin/Transaksi'));
 const AdminLaporan        = lazy(() => import('./pages/admin/Laporan'));
 const AdminUserManagement = lazy(() => import('./pages/admin/UserManagement'));
+const AdminFaq            = lazy(() => import('./pages/admin/Adminfaq'));
 
 // =============================================================================
 // LOADING FALLBACK
@@ -178,6 +180,7 @@ function App() {
               />
             }
           />
+          <Route path="faq" element={<FAQ />} />
         </Route>
 
         {/* ===== ADMIN CONTROL PANEL ===== */}
@@ -197,6 +200,7 @@ function App() {
           <Route path="transaksi" element={<AdminTransaksi />} />
           <Route path="laporan" element={<AdminLaporan />} />
           <Route path="users" element={<AdminUserManagement currentUser={user} />} />
+          <Route path="faq" element={<AdminFaq />} />
         </Route>
 
         {/* ===== FALLBACK ===== */}

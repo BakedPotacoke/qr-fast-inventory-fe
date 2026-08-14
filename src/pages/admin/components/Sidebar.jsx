@@ -7,6 +7,7 @@ import {
   User02Icon,
   ReturnRequestIcon,
   Cancel01Icon,
+  MessageQuestionIcon,
 } from '@hugeicons/core-free-icons';
 
 // ===== NAV ITEMS =====
@@ -15,7 +16,8 @@ const navItems = [
   { to: '/admin/inventaris', label: 'Data Barang', icon: Package02Icon },
   { to: '/admin/transaksi', label: 'Kelola Transaksi', icon: HistoryIcon },
   { to: '/admin/laporan', label: 'Laporan Pengembalian', icon: ReturnRequestIcon },
-  { to: '/admin/users', label: 'Kelola Pengguna', icon: User02Icon }
+  { to: '/admin/users', label: 'Kelola Pengguna', icon: User02Icon },
+  { to: '/admin/faq', label: 'FAQ', icon: MessageQuestionIcon },
 ];
 
 const linkClass = ({ isActive }) =>

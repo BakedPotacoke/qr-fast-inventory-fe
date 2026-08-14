@@ -13,8 +13,6 @@ import {
 } from '@hugeicons/core-free-icons';
 import headerBg from '../assets/header-bg.webp';
 import GagalMuatData from '../components/GagalMuatData';
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
 import { InlineCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 
 // ===== HELPER =====
@@ -44,14 +42,11 @@ function formatTanggalKembali(dateStr) {
 }
 
 // ===== INVENTARIS STAT CARD =====
-function InventarisStatCard({ icon, bgClass, value, label, loading }) {
+function InventarisStatCard({ icon, bgClass, value, label }) {
   return (
     <div className={`inventaris-card flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-white ${bgClass}`}>
       <div className="min-w-0">
-        {loading
-          ? <Skeleton width={36} height={26} borderRadius={6} baseColor="rgba(255,255,255,0.25)" highlightColor="rgba(255,255,255,0.4)" />
-          : <p className="inv-number text-xl sm:text-2xl font-bold leading-none">{value}</p>
-        }
+        <p className="inv-number text-xl sm:text-2xl font-bold leading-none">{value}</p>
         <p className="inv-label text-xs sm:text-sm font-medium text-white/85 mt-1.5">{label}</p>
       </div>
       <HugeiconsIcon icon={icon} size={29} color="#ffffff" strokeWidth={1.6} className="shrink-0" />
@@ -282,10 +277,7 @@ export default function Beranda({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] sm:text-xs font-medium text-white/70 uppercase tracking-wide">Total Barang</span>
-                {loading
-                  ? <div className="mt-1"><Skeleton width={56} height={30} borderRadius={6} baseColor="rgba(255,255,255,0.2)" highlightColor="rgba(255,255,255,0.35)" /></div>
-                  : <p className="inv-number text-2xl sm:text-3xl font-bold mt-1">{dashboardData.inventaris.totalBarang}</p>
-                }
+                <p className="inv-number text-2xl sm:text-3xl font-bold mt-1">{dashboardData.inventaris.totalBarang}</p>
               </div>
               <HugeiconsIcon icon={PackageIcon} size={33} color="currentColor" strokeWidth={1.6} className="shrink-0" />
             </div>
@@ -315,28 +307,24 @@ export default function Beranda({ user }) {
               bgClass="bg-emerald-500"
               value={dashboardData.inventaris.tersedia}
               label="Tersedia"
-              loading={loading}
             />
             <InventarisStatCard
               icon={PackageIcon}
               bgClass="bg-blue-500"
               value={dashboardData.inventaris.sedangDipinjam}
               label="Dipinjam"
-              loading={loading}
             />
             <InventarisStatCard
               icon={Wrench01Icon}
               bgClass="bg-amber-500"
               value={dashboardData.inventaris.jumlahRusak}
               label="Rusak"
-              loading={loading}
             />
             <InventarisStatCard
               icon={SearchRemoveIcon}
               bgClass="bg-red-500"
               value={dashboardData.inventaris.jumlahHilang}
               label="Hilang"
-              loading={loading}
             />
           </div>
         </section>
