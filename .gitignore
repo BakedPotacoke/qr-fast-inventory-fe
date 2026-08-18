@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Tests & Coverage
+test/
+tests/
+coverage/

@@ -3,18 +3,6 @@ import { Outlet } from 'react-router-dom';
 import AdminSidebar from './components/Sidebar';
 import AdminTopbar from './components/Topbar';
 
-// Fallback ringan khusus untuk konten halaman admin.
-// Berbeda dengan PageLoader di App.jsx yang full-screen, loader ini
-// hanya mengisi area <main> — sidebar dan topbar tetap terlihat
-// saat pengguna navigasi antar halaman dalam area admin.
-function AdminPageLoader() {
-  return (
-    <div className="flex h-full min-h-[60vh] items-center justify-center">
-      <div className="h-7 w-7 animate-spin rounded-full border-4 border-[#14a2ba] border-t-transparent" />
-    </div>
-  );
-}
-
 // ===== MAIN COMPONENT =====
 export default function AdminLayout({ user, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,7 +35,7 @@ export default function AdminLayout({ user, onLogout }) {
               hanya konten <main> yang menampilkan loader sementara chunk halaman diunduh.
         ===== */}
         <main className="flex-1 overflow-y-auto p-5 lg:p-8">
-          <Suspense fallback={<AdminPageLoader />}>
+          <Suspense fallback={null}>
             <Outlet context={{ user, onLogout }} />
           </Suspense>
         </main>

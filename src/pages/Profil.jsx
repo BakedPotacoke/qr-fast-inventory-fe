@@ -16,6 +16,7 @@ import {
   AlertCircleIcon,
   Loading03Icon,
 } from '@hugeicons/core-free-icons';
+import { showToast, showConfirm } from '../utils/alert';
 
 // ===== ATURAN VALIDASI (sama seperti LoginRegister, + confirmPassword) =====
 const PROFILE_RULES = {
@@ -153,7 +154,7 @@ function EditProfileModal({ user, onClose, onSaved }) {
       }
 
       setSuccess('Profil berhasil diperbarui.');
-      onSaved(result.data);
+      onSaved(result.data, result.message);
     } catch (err) {
       console.error('Update profile error:', err);
       setServerError('Terjadi kesalahan, coba lagi.');
@@ -332,8 +333,9 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
   const nama = user?.nama_lengkap || 'Pengguna';
   const email = user?.email || '-';
 
-  const handleSaved = (updatedUser) => {
+  const handleSaved = (updatedUser, message) => {
     setShowEditModal(false);
+    showToast.success(message || 'Profil berhasil diperbarui.');
     onUpdateUser?.(updatedUser);
   };
 

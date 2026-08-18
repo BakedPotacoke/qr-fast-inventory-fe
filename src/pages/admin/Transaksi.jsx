@@ -15,6 +15,7 @@ import {
     Calendar03Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import { showToast, showConfirm } from '../../utils/alert';
 
 const API_URL      = `${import.meta.env.VITE_API_URL}/api/transactions`;
 // GET /api/transactions/summary → { data: { total, dipinjam, selesai } }
@@ -66,7 +67,6 @@ export default function Transaksi() {
     const [search,         setSearch]         = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [processingId,   setProcessingId]   = useState(null);
-    const [toast,          setToast]          = useState(null);
     const [tanggalMulai,   setTanggalMulai]   = useState('');
     const [tanggalAkhir,   setTanggalAkhir]   = useState('');
 
@@ -176,12 +176,6 @@ export default function Transaksi() {
         fetchKategori();
     }, [fetchKategori]);
 
-    useEffect(() => {
-        if (!toast) return;
-        const t = setTimeout(() => setToast(null), 3000);
-        return () => clearTimeout(t);
-    }, [toast]);
-
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -190,9 +184,11 @@ export default function Transaksi() {
     const handleStatusChange = async (transaction, newStatus) => {
         if (newStatus === transaction.status) return;
         const label     = STATUS_OPTIONS.find((s) => s.value === newStatus)?.label || newStatus;
-        const confirmed = window.confirm(
-            `Ubah status "${transaction.nama_barang}" (peminjam: ${transaction.peminjam}) menjadi "${label}"?`
-        );
+        const confirmed = await showConfirm({
+            title: 'Ubah Status Transaksi?',
+            text: `Ubah status "${transaction.nama_barang}" (peminjam: ${transaction.peminjam}) menjadi "${label}"?`,
+            confirmButtonText: 'Ya, Ubah',
+        });
         if (!confirmed) return;
 
         setProcessingId(transaction.id);
@@ -227,9 +223,9 @@ export default function Transaksi() {
                 tanggal_mulai: tanggalMulai,
                 tanggal_akhir: tanggalAkhir,
             });
-            setToast({ type: 'success', text: body.message || 'Status berhasil diperbarui.' });
+            showToast.success(body.message || 'Status transaksi berhasil diperbarui.');
         } catch (err) {
-            setToast({ type: 'error', text: err.message || 'Gagal memperbarui status.' });
+            showToast.error(err.message || 'Gagal memperbarui status.');
         } finally {
             setProcessingId(null);
         }
@@ -267,12 +263,7 @@ export default function Transaksi() {
                 </p>
             </div>
 
-            {toast && (
-                <div className={`mt-6 flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm ${toast.type === 'success' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-red-50 text-red-700 ring-1 ring-red-200'}`}>
-                    <HugeiconsIcon icon={toast.type === 'success' ? CheckmarkCircle02Icon : Alert02Icon} size={18} color="currentColor" strokeWidth={1.5} />
-                    {toast.text}
-                </div>
-            )}
+
 
             {/* STAT CARDS */}
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

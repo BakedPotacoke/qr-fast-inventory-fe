@@ -8,6 +8,7 @@ import {
   AlertCircleIcon,
   Loading03Icon,
 } from '@hugeicons/core-free-icons';
+import { showToast } from '../utils/alert';
 
 // ===== ATURAN VALIDASI =====
 const RULES = {
@@ -123,20 +124,26 @@ export default function LoginRegister({ onLoginSuccess }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setServerError(data.message || 'Terjadi kesalahan.');
+        const errorMsg = data.message || 'Terjadi kesalahan.';
+        setServerError(errorMsg);
+        showToast.error(errorMsg);
         return;
       }
 
       if (mode === 'register') {
-        setSuccess('Registrasi berhasil! Silakan login.');
+        const successMsg = data.message || 'Registrasi berhasil! Silakan login.';
+        setSuccess(successMsg);
+        showToast.success(successMsg);
         switchMode('login');
       } else {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        showToast.success(data.message || 'Login berhasil!');
         if (onLoginSuccess) onLoginSuccess(data.user);
       }
     } catch {
       setServerError('Tidak dapat terhubung ke server.');
+      showToast.error('Tidak dapat terhubung ke server.');
     } finally {
       setLoading(false);
     }

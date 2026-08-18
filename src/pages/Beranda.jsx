@@ -14,6 +14,7 @@ import {
 import headerBg from '../assets/header-bg.webp';
 import GagalMuatData from '../components/GagalMuatData';
 import { InlineCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
+import { showToast } from '../utils/alert';
 
 // ===== HELPER =====
 function getSapaan() {
@@ -41,10 +42,20 @@ function formatTanggalKembali(dateStr) {
   });
 }
 
+// ===== FONT LOADER =====
+function FontLoader() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+      .inv-font { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
+    `}</style>
+  );
+}
+
 // ===== INVENTARIS STAT CARD =====
 function InventarisStatCard({ icon, bgClass, value, label }) {
   return (
-    <div className={`inventaris-card flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-white ${bgClass}`}>
+    <div className={`inventaris-card flex items-center justify-between gap-3 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white ${bgClass}`}>
       <div className="min-w-0">
         <p className="inv-number text-xl sm:text-2xl font-bold leading-none">{value}</p>
         <p className="inv-label text-xs sm:text-sm font-medium text-white/85 mt-1.5">{label}</p>
@@ -87,7 +98,7 @@ function LaporHilangModal({ item, onClose, onSuccess }) {
       if (!res.ok) {
         throw new Error(data.message || 'Gagal mengirim laporan.');
       }
-      onSuccess(item.id);
+      onSuccess(item.id, data.message);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -174,7 +185,6 @@ export default function Beranda({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [itemToReport, setItemToReport] = useState(null);
-  const [reportedNotice, setReportedNotice] = useState(null);
 
   const sapaan = getSapaan();
 
@@ -211,23 +221,23 @@ export default function Beranda({ user }) {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleReportSuccess = (reportedItemId) => {
+  const handleReportSuccess = (reportedItemId, message) => {
     // Barang yang dilaporkan hilang tidak lagi "sedang dipinjam", hapus dari daftar lokal
     setDashboardData((prev) => ({
       ...prev,
       pinjaman: prev.pinjaman.filter((p) => p.id !== reportedItemId),
     }));
     setItemToReport(null);
-    setReportedNotice('Laporan berhasil dikirim. Terima kasih sudah melapor.');
-    setTimeout(() => setReportedNotice(null), 4000);
+    showToast.success(message || 'Laporan berhasil dikirim. Terima kasih sudah melapor.');
     // Sinkronkan ulang ringkasan inventaris (jumlahHilang, tersedia, dsb.)
     fetchDashboardData();
   };
 
   return (
-    <>
+    <div className="inv-font min-h-screen bg-white">
+      <FontLoader />
       {/* ===== HEADER (banner ilustrasi) ===== */}
-      <div className="main-header relative h-28 overflow-hidden mb-4 sm:mb-5">
+      <div className="main-header relative h-28 overflow-hidden mb-0">
         <img
           src={headerBg}
           alt=""
@@ -236,7 +246,7 @@ export default function Beranda({ user }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/5 to-black/10" />
 
-        <div className="relative z-10 flex h-full flex-col justify-end px-4 sm:px-5 py-3 sm:py-4">
+        <div className="relative z-10 flex h-full flex-col justify-end px-4 sm:px-6 py-3 sm:py-4 mx-auto w-full max-w-2xl">
           <div className="main-header-user flex items-center gap-3">
             <div className="rounded-full ring-2 ring-white/50">
               <AvatarIcon nama={user.nama_lengkap} />
@@ -250,14 +260,7 @@ export default function Beranda({ user }) {
       </div>
 
       {/* ===== BODY CONTENT ===== */}
-      <div className="main-body px-4 sm:px-5 space-y-5 sm:space-y-6">
-
-        {/* Notifikasi setelah lapor berhasil */}
-        {reportedNotice && (
-          <div className="report-success-toast animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-200 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-emerald-700">
-            {reportedNotice}
-          </div>
-        )}
+      <div className="main-body mx-auto w-full max-w-2xl px-4 sm:px-6 pt-6 space-y-5 sm:space-y-6">
 
       {/* Ringkasan Inventaris */}
         <section className="main-section">
@@ -273,7 +276,7 @@ export default function Beranda({ user }) {
           </div>
 
           {/* Hero card: Total Barang + breakdown bar */}
-          <div className="inventaris-hero relative overflow-hidden rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white p-4 sm:p-5 mb-3 sm:mb-4">
+          <div className="inventaris-hero relative overflow-hidden rounded-2xl sm:rounded-3xl bg-[#14a2ba] text-white p-4 sm:p-5 mb-3 sm:mb-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] sm:text-xs font-medium text-white/70 uppercase tracking-wide">Total Barang</span>
@@ -331,11 +334,11 @@ export default function Beranda({ user }) {
 
         {/* Scan QR Banner */}
         <button
-          className="scan-banner w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-2xl bg-[#14a2ba] text-white shadow-sm hover:bg-[#0d8194] transition-all duration-200 active:scale-[0.99] hover:shadow-md"
+          className="scan-banner w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#14a2ba] text-white shadow-sm hover:bg-[#0d8194] transition-all duration-200 active:scale-[0.99] hover:shadow-md"
           type="button"
           onClick={() => navigate('/scan')}
         >
-          <div className="scan-banner-icon w-10 sm:w-11 h-10 sm:h-11 rounded-lg sm:rounded-xl bg-white/15 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+          <div className="scan-banner-icon w-10 sm:w-11 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-white/15 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
             <IconQR />
           </div>
           <div className="scan-banner-text flex-1 text-left">
@@ -376,11 +379,11 @@ export default function Beranda({ user }) {
             ) : (
               dashboardData.pinjaman.map((item) => (
                 <div
-                  className="pinjaman-card flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-sm transition-shadow duration-200"
+                  className="pinjaman-card flex items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white border border-slate-100 shadow-xs hover:-translate-y-0.5 hover:border-[#14a2ba]/30 hover:shadow-md transition-all duration-200 active:translate-y-0 active:scale-[0.99]"
                   key={item.id}
                 >
                   <div className="pinjaman-info flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="pinjaman-img w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200">
+                    <div className="pinjaman-img h-16 w-16 sm:h-20 sm:w-20 rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-all duration-200">
                       {item.gambar
                         ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
                         : <IconBox />
@@ -443,14 +446,14 @@ export default function Beranda({ user }) {
             ) : (
               dashboardData.riwayat.map((item) => (
                 <div
-                  className="riwayat-card relative flex items-center gap-3 p-3 sm:p-4 pr-16 sm:pr-20 rounded-lg sm:rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-sm transition-shadow duration-200"
+                  className="riwayat-card relative flex items-center gap-3 p-3 sm:p-4 pr-16 sm:pr-20 rounded-2xl sm:rounded-3xl bg-white border border-slate-100 shadow-xs hover:-translate-y-0.5 hover:border-[#14a2ba]/30 hover:shadow-md transition-all duration-200 active:translate-y-0 active:scale-[0.99]"
                   key={item.transaction_id}
                 >
                   <span className="riwayat-tanggal absolute top-2.5 right-3 sm:top-3 sm:right-4 text-[11px] sm:text-xs text-slate-400">
                     {formatTanggalKembali(item.waktu_kembali)}
                   </span>
                   <div className="riwayat-info flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="riwayat-img w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200">
+                    <div className="riwayat-img h-16 w-16 sm:h-20 sm:w-20 rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-all duration-200">
                       {item.gambar
                         ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
                         : <IconBox />
@@ -479,6 +482,6 @@ export default function Beranda({ user }) {
           onSuccess={handleReportSuccess}
         />
       )}
-    </>
+    </div>
   );
 }

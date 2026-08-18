@@ -18,6 +18,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
 import { useImageViewer } from '../../components/ImageViewer';
+import { showToast } from '../../utils/alert';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/reports`;
 // GET /api/reports/summary → { data: { total, bulan_ini, perlu_perhatian, breakdown: [{ jenis_laporan, jumlah }] } }
@@ -236,8 +237,9 @@ export default function Laporan() {
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Gagal mengambil data untuk ekspor.');
             exportToCsv(body.data || []);
+            showToast.success('Data laporan berhasil diekspor.');
         } catch (err) {
-            alert(err.message || 'Gagal mengekspor data.');
+            showToast.error(err.message || 'Gagal mengekspor data.');
         } finally {
             setIsExporting(false);
         }

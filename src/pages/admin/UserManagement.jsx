@@ -17,6 +17,7 @@ import {
     SortByDown01Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import { showToast, showConfirm } from '../../utils/alert';
 
 const PAGE_LIMIT = 15;
 
@@ -174,7 +175,7 @@ function UserFormModal({ mode, initialUser, onClose, onSaved }) {
                 return;
             }
 
-            onSaved(result.data);
+            onSaved(result.data, isEdit ? 'edit' : 'add', result.message);
         } catch (err) {
             console.error('Save user error:', err);
             setServerError('Terjadi kesalahan, coba lagi.');
@@ -385,7 +386,7 @@ function DeleteConfirmModal({ targetUser, onClose, onConfirmed }) {
                 return;
             }
 
-            onConfirmed(targetUser.id);
+            onConfirmed(targetUser.id, result.message);
         } catch (err) {
             console.error('Delete user error:', err);
             setError('Terjadi kesalahan, coba lagi.');
@@ -640,23 +641,22 @@ export default function UserManagement({ currentUser }) {
         setTimeout(() => setSuccessMsg(''), 3000);
     };
 
-    const handleSaved = (savedUser, mode) => {
+    const handleSaved = (savedUser, mode, message) => {
         setFormModal(null);
         if (mode === 'edit') {
             setUsers((prev) => prev.map((u) => (u.id === savedUser.id ? { ...u, ...savedUser } : u)));
-            flashSuccess('Pengguna berhasil diperbarui.');
         } else {
             setCurrentPage(1);
             fetchUsers(1);
-            flashSuccess('Pengguna berhasil ditambahkan.');
         }
+        showToast.success(message || (mode === 'edit' ? 'Pengguna berhasil diperbarui.' : 'Pengguna berhasil ditambahkan.'));
         fetchGlobalStats();
         fetchFilteredStats({ search: debouncedSearch });
     };
 
-    const handleDeleted = (id) => {
+    const handleDeleted = (id, message) => {
         setDeleteTarget(null);
-        flashSuccess('Pengguna berhasil dihapus.');
+        showToast.success(message || 'Pengguna berhasil dihapus.');
         // Refresh halaman aktif; mundur 1 halaman jika halaman sekarang jadi kosong
         const nextPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
         setCurrentPage(nextPage);

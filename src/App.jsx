@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import BottomNavigation from './components/BottomNavigation'; // Eager — layout tetap, selalu dibutuhkan user login
 import { ImageViewerProvider } from './components/ImageViewer';
+import { showConfirm, showToast } from './utils/alert';
 import './App.css';
 
 // Auth — dimuat hanya untuk user yang belum login
@@ -27,20 +28,7 @@ const AdminLaporan        = lazy(() => import('./pages/admin/Laporan'));
 const AdminUserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const AdminFaq            = lazy(() => import('./pages/admin/Adminfaq'));
 
-// =============================================================================
-// LOADING FALLBACK
-// Ditampilkan selama chunk JS halaman sedang diunduh.
-// =============================================================================
-function PageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#14a2ba] border-t-transparent" />
-        <span className="text-sm text-slate-400">Memuat halaman...</span>
-      </div>
-    </div>
-  );
-}
+
 
 // =============================================================================
 // ROUTE GUARDS
@@ -119,10 +107,20 @@ function App() {
     navigate(userData.role === 'admin' ? '/admin' : '/', { replace: true });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const confirmed = await showConfirm({
+      title: 'Keluar dari Akun?',
+      text: 'Anda harus masuk kembali untuk mengakses aplikasi.',
+      confirmButtonText: 'Ya, Keluar',
+      confirmButtonColor: '#ef4444',
+      icon: 'question',
+    });
+    if (!confirmed) return;
+
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    showToast.info('Anda telah keluar.');
     navigate('/login', { replace: true });
   };
 
@@ -136,7 +134,7 @@ function App() {
     // React akan menampilkan <PageLoader /> setiap kali chunk halaman baru
     // sedang diunduh, lalu merender halaman begitu chunk tersedia.
     <ImageViewerProvider>
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={null}>
       <Routes>
 
         {/* ===== LOGIN / REGISTER ===== */}

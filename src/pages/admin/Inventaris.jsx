@@ -25,6 +25,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
 import { useImageViewer } from '../../components/ImageViewer';
+import { showToast, showConfirm } from '../../utils/alert';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/items`;
 const PAGE_LIMIT = 15;
@@ -269,7 +270,7 @@ export default function InventarisAdmin() {
   const handleOpenTambah = () => { setItemToEdit(null); setShowForm(true); };
   const handleOpenEdit   = (item) => { setItemToEdit(item); setShowForm(true); };
 
-  const handleSaved = (savedItem, isNew) => {
+  const handleSaved = (savedItem, isNew, message) => {
     if (isNew) {
       // Refresh halaman pertama supaya item baru muncul di atas
       setCurrentPage(1);
@@ -281,15 +282,23 @@ export default function InventarisAdmin() {
     fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
     setShowForm(false);
     setItemToEdit(null);
+    showToast.success(message || (isNew ? 'Barang berhasil ditambahkan.' : 'Barang berhasil diperbarui.'));
   };
 
   // ── Hapus satu barang ─────────────────────────────────────────────────────
   const handleDelete = async (item) => {
     if (item.status === 'dipinjam') {
-      alert('Barang yang sedang dipinjam tidak dapat dihapus!');
+      showToast.warning('Barang yang sedang dipinjam tidak dapat dihapus!');
       return;
     }
-    if (!window.confirm(`Hapus "${item.nama}"?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Hapus Barang?',
+      text: `Barang "${item.nama}" akan dihapus permanen.`,
+      confirmButtonText: 'Ya, Hapus',
+      confirmButtonColor: '#ef4444',
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
@@ -305,16 +314,23 @@ export default function InventarisAdmin() {
       fetchItems(nextPage);
       fetchGlobalSummary();
       fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
+      showToast.success(data.message || 'Barang berhasil dihapus.');
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      showToast.error(err.message || 'Gagal menghapus barang.');
     }
   };
 
   // ── Hapus massal ──────────────────────────────────────────────────────────
   const handleBulkDelete = async () => {
     if (selectedForDelete.length === 0) return;
-    if (!window.confirm(`Yakin ingin menghapus ${selectedForDelete.length} barang terpilih?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Hapus Barang Terpilih?',
+      text: `Yakin ingin menghapus ${selectedForDelete.length} barang terpilih secara permanen?`,
+      confirmButtonText: 'Ya, Hapus Semua',
+      confirmButtonColor: '#ef4444',
+    });
+    if (!confirmed) return;
 
     setIsDeleting(true);
     try {
@@ -333,9 +349,10 @@ export default function InventarisAdmin() {
       fetchItems(nextPage);
       fetchGlobalSummary();
       fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
+      showToast.success(data.message || 'Barang terpilih berhasil dihapus.');
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      showToast.error(err.message || 'Gagal menghapus barang terpilih.');
     } finally {
       setIsDeleting(false);
     }
@@ -922,7 +939,7 @@ function BarangFormModal({ item, onClose, onSaved }) {
         sku: data.data.qr_code,
         gambar: data.data.gambar_url !== undefined ? data.data.gambar_url : item?.gambar,
       };
-      onSaved(savedItem, !isEdit);
+      onSaved(savedItem, !isEdit, data.message);
     } catch (err) {
       console.error(err);
       setErrors({ api: err.message });
