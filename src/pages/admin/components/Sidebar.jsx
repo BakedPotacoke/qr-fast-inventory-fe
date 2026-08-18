@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Home01Icon,
@@ -27,8 +27,6 @@ const linkClass = ({ isActive }) =>
 
 // ===== MAIN COMPONENT =====
 export default function AdminSidebar({ open, onClose, onLogout }) {
-  const navigate = useNavigate();
-
   return (
     <>
       {/* ===== OVERLAY (mobile) ===== */}
@@ -76,14 +74,6 @@ export default function AdminSidebar({ open, onClose, onLogout }) {
         </nav>
 
         <div className="px-3 py-4 border-t border-slate-100 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="w-full mb-1.5 flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
-          >
-            <HugeiconsIcon icon={Package02Icon} size={19} strokeWidth={1.8} />
-            Ke tampilan pegawai
-          </button>
           <button
             type="button"
             onClick={onLogout}

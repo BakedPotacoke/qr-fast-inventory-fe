@@ -15,7 +15,6 @@ import {
   CheckmarkCircleIcon,
   AlertCircleIcon,
   Loading03Icon,
-  UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
 // ===== ATURAN VALIDASI (sama seperti LoginRegister, + confirmPassword) =====
@@ -375,22 +374,6 @@ export default function Profil({ user, onLogout, onUpdateUser }) {
               onClick={() => navigate('/scan')}
             />
           </div>
-
-          {/* --- ADMINISTRASI (khusus admin) --- */}
-          {user?.role === 'admin' && (
-            <>
-              <p className="mt-8 mb-2 px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">
-                Administrasi
-              </p>
-              <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 shadow-sm">
-                <MenuItem
-                  icon={<HugeiconsIcon icon={UserGroupIcon} size={18} strokeWidth={2} />}
-                  label="Admin Panel"
-                  onClick={() => navigate('/usermanagement')}
-                />
-              </div>
-            </>
-          )}
 
           {/* --- PENGATURAN --- */}
           <p className="mt-8 mb-2 px-1 text-xs font-bold tracking-wide text-slate-400 uppercase">Pengaturan</p>

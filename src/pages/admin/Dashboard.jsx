@@ -11,6 +11,7 @@ import {
   RepeatIcon,
   Alert01Icon,
   Clock01Icon,
+  Calendar03Icon,
 } from "@hugeicons/core-free-icons";
 
 // Konvensi disamakan dengan file lain di project (lihat Beranda.jsx):
@@ -28,14 +29,14 @@ function getWeekRange(date) {
 function getMonthRange(date) {
   const d = new Date(date);
   const first = new Date(d.getFullYear(), d.getMonth(), 1);
-  const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
   return { from: toDateKey(first), to: toDateKey(last) };
 }
 
 function getYearRange(date) {
   const d = new Date(date);
   const first = new Date(d.getFullYear(), 0, 1);
-  const last  = new Date(d.getFullYear(), 11, 31);
+  const last = new Date(d.getFullYear(), 11, 31);
   return { from: toDateKey(first), to: toDateKey(last) };
 }
 
@@ -138,16 +139,16 @@ function LegendRow({ data }) {
 
 const PRESETS = [
   { label: "Minggu Ini", key: "week" },
-  { label: "Bulan Ini",  key: "month" },
-  { label: "Tahun Ini",  key: "year" },
+  { label: "Bulan Ini", key: "month" },
+  { label: "Tahun Ini", key: "year" },
 ];
 
 function DateRangePicker({ range, onChange, error }) {
   const now = new Date();
   const presetRanges = {
-    week:  getWeekRange(now),
+    week: getWeekRange(now),
     month: getMonthRange(now),
-    year:  getYearRange(now),
+    year: getYearRange(now),
   };
 
   const activePreset = PRESETS.find(
@@ -163,29 +164,28 @@ function DateRangePicker({ range, onChange, error }) {
           <button
             key={p.key}
             onClick={() => setPreset(p.key)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              activePreset?.key === p.key
-                ? "bg-slate-800 text-white"
-                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-            }`}
+            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${activePreset?.key === p.key
+              ? "bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
           >
             {p.label}
           </button>
         ))}
-        <div className={`flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 ring-1 ${error ? "ring-red-400" : "ring-slate-200"}`}>
-          <HugeiconsIcon icon={Clock01Icon} size={13} color="#94a3b8" strokeWidth={1.5} />
+        <div className={`flex shrink-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 border ${error ? "border-red-400" : "border-slate-200"}`}>
+          <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="shrink-0 text-slate-400" />
           <input
             type="date"
             value={range.from}
             onChange={(e) => onChange({ ...range, from: e.target.value })}
-            className="border-none bg-transparent text-xs text-slate-600 outline-none"
+            className="bg-transparent text-sm text-slate-600 outline-none"
           />
-          <span className="text-xs text-slate-400">–</span>
+          <span className="text-sm text-slate-400">-</span>
           <input
             type="date"
             value={range.to}
             onChange={(e) => onChange({ ...range, to: e.target.value })}
-            className="border-none bg-transparent text-xs text-slate-600 outline-none"
+            className="bg-transparent text-sm text-slate-600 outline-none"
           />
         </div>
       </div>
@@ -221,7 +221,7 @@ export default function Dashboard() {
       .catch((err) => { if (active) setError(err.message); });
 
     return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
   if (error) {
@@ -242,16 +242,21 @@ export default function Dashboard() {
     name: STATUS_LABEL[key],
     value: Number(
       key === "tersedia" ? inv.tersedia :
-      key === "dipinjam" ? inv.sedangDipinjam :
-      key === "rusak" ? inv.jumlahRusak :
-      inv.jumlahHilang
+        key === "dipinjam" ? inv.sedangDipinjam :
+          key === "rusak" ? inv.jumlahRusak :
+            inv.jumlahHilang
     ) || 0,
     color: STATUS_COLOR[key],
   }));
 
-  const kategoriData = (summary?.kategoriBreakdown ?? []).map((k) => ({
+  const kategoriRaw = (summary?.kategoriBreakdown ?? []).map((k) => ({
     kategori: k.kategori,
     jumlah: Number(k.jumlah),
+  }));
+  const kategoriMax = Math.max(0, ...kategoriRaw.map((k) => k.jumlah));
+  const kategoriData = kategoriRaw.map((k) => ({
+    ...k,
+    fill: k.jumlah === kategoriMax && kategoriMax > 0 ? "#14a2ba" : "#0F6E56",
   }));
 
   const rangeDays = diffDays(range.from, range.to);
@@ -261,8 +266,8 @@ export default function Dashboard() {
   );
   const trenPeminjaman = daysInRange(range.from, range.to).map((d) => ({
     tanggal: toDateKey(d),                              // unik — dipakai recharts sebagai identifier
-    label:   formatTanggal(d, compactLabel),            // display-only, dipakai XAxis tickFormatter
-    jumlah:  trenMap.get(toDateKey(d)) ?? 0,
+    label: formatTanggal(d, compactLabel),            // display-only, dipakai XAxis tickFormatter
+    jumlah: trenMap.get(toDateKey(d)) ?? 0,
   }));
 
   const laporanData = (summary?.laporanBreakdown ?? []).map((l) => ({
@@ -271,9 +276,14 @@ export default function Dashboard() {
     color: LAPORAN_COLOR[l.jenis_laporan] ?? "#5F5E5A",
   }));
 
-  const topBarang = (summary?.topBarang ?? []).map((b) => ({
+  const topBarangRaw = (summary?.topBarang ?? []).map((b) => ({
     nama: b.nama_barang,
     dipinjam: Number(b.dipinjam),
+  }));
+  const topBarangMax = Math.max(0, ...topBarangRaw.map((b) => b.dipinjam));
+  const topBarang = topBarangRaw.map((b) => ({
+    ...b,
+    fill: b.dipinjam === topBarangMax && topBarangMax > 0 ? "#14a2ba" : "#534AB7",
   }));
 
   const stats = [
@@ -364,14 +374,18 @@ export default function Dashboard() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
           <Card title="Barang per kategori" subtitle="Jumlah item terdaftar tiap kategori">
-            <div className="h-56">
+            <div style={{ height: Math.max(224, kategoriData.length * 44), maxHeight: 480, overflowY: "auto" }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={kategoriData} layout="vertical" margin={{ left: 10, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef1f4" />
                   <XAxis type="number" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="kategori" width={90} tick={{ fontSize: 12, fill: "#475569" }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="kategori" width={90} tick={{ fontSize: 12, fill: "#475569" }} axisLine={false} tickLine={false} interval={0} />
                   <Tooltip cursor={{ fill: "#f8fafc" }} />
-                  <Bar dataKey="jumlah" fill="#0F6E56" radius={[0, 4, 4, 0]} barSize={16} />
+                  <Bar dataKey="jumlah" radius={[0, 4, 4, 0]} barSize={16}>
+                    {kategoriData.map((d) => (
+                      <Cell key={d.kategori} fill={d.fill} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -406,7 +420,11 @@ export default function Dashboard() {
                 <XAxis type="number" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="nama" width={140} tick={{ fontSize: 12, fill: "#475569" }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: "#f8fafc" }} />
-                <Bar dataKey="dipinjam" fill="#534AB7" radius={[0, 4, 4, 0]} barSize={16} />
+                <Bar dataKey="dipinjam" radius={[0, 4, 4, 0]} barSize={16}>
+                  {topBarang.map((b) => (
+                    <Cell key={b.nama} fill={b.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -46,9 +46,10 @@ function PageLoader() {
 // ROUTE GUARDS
 // =============================================================================
 
-// Wajib login. Jika belum, lempar ke /login.
-function ProtectedRoute({ user, children }) {
+// Khusus user non-admin. Jika admin → /admin.
+function UserRoute({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
   return children;
 }
 
@@ -152,9 +153,9 @@ function App() {
         <Route
           path="/scan"
           element={
-            <ProtectedRoute user={user}>
+            <UserRoute user={user}>
               <Scan user={user} />
-            </ProtectedRoute>
+            </UserRoute>
           }
         />
 
@@ -162,9 +163,9 @@ function App() {
         <Route
           path="/"
           element={
-            <ProtectedRoute user={user}>
+            <UserRoute user={user}>
               <BottomNavigation user={user} onLogout={handleLogout} />
-            </ProtectedRoute>
+            </UserRoute>
           }
         >
           <Route index element={<Beranda user={user} />} />
