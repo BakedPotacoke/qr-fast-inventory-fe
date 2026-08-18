@@ -5,7 +5,6 @@ import {
   ArrowUp01Icon,
   Cancel01Icon,
   HistoryIcon,
-  UserIcon,
   Calendar03Icon,
   BarCode01Icon,
   ArrowLeft01Icon,
@@ -64,7 +63,7 @@ const STATUS_CONFIG = {
 };
 
 // ===== TRANSACTION CARD (Versi Modern & Interactive) =====
-function TransaksiCard({ item, onClick, isAdmin }) {
+function TransaksiCard({ item, onClick }) {
   const status = STATUS_CONFIG[item.status];
 
   return (
@@ -107,18 +106,12 @@ function TransaksiCard({ item, onClick, isAdmin }) {
       <div className="my-3.5 h-px w-full bg-slate-100" />
 
       {/* Info grid */}
-      <div className={`grid gap-x-4 gap-y-3 ${isAdmin ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
-        {isAdmin && (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Peminjam</span>
-            <span className="truncate text-xs sm:text-sm font-semibold text-slate-700">{item.peminjam}</span>
-          </div>
-        )}
+      <div className="grid gap-x-4 gap-y-3 grid-cols-2">
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Waktu Pinjam</span>
           <span className="truncate text-xs sm:text-sm font-semibold text-slate-700">{item.waktu_pinjam}</span>
         </div>
-        <div className={`flex flex-col gap-0.5 ${isAdmin ? 'col-span-2 sm:col-span-1' : ''}`}>
+        <div className="flex flex-col gap-0.5">
           <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Pengembalian</span>
           <span
             className="truncate text-xs sm:text-sm font-bold"
@@ -133,13 +126,12 @@ function TransaksiCard({ item, onClick, isAdmin }) {
 }
 
 // ===== DETAIL MODAL =====
-function DetailModal({ item, onClose, isAdmin }) {
+function DetailModal({ item, onClose }) {
   if (!item) return null;
   const status = STATUS_CONFIG[item.status];
 
-  const allRows = [
+  const rows = [
     { icon: BarCode01Icon, label: 'Stock Keeping Unit', value: item.sku },
-    { icon: UserIcon, label: 'Peminjam', value: item.peminjam, adminOnly: true },
     { icon: Calendar03Icon, label: 'Waktu Pinjam', value: item.waktu_pinjam },
     {
       icon: Calendar03Icon,
@@ -148,7 +140,6 @@ function DetailModal({ item, onClose, isAdmin }) {
       color: status.accent,
     },
   ];
-  const rows = allRows.filter((r) => !r.adminOnly || isAdmin);
 
   return (
     <div
@@ -385,8 +376,6 @@ export default function Riwayat({ user }) {
   const [tanggalMulai, setTanggalMulai]                 = useState('');
   const [tanggalAkhir, setTanggalAkhir]                 = useState('');
 
-  const isAdmin = user?.role === 'admin';
-
   const formatTanggal = (isoString) => {
     if (!isoString) return null;
     const dateObj = new Date(isoString);
@@ -419,12 +408,10 @@ export default function Riwayat({ user }) {
     if (tanggalMulai && tanggalMulai.trim()) params.set('tanggal_mulai', tanggalMulai.trim());
     if (tanggalAkhir && tanggalAkhir.trim()) params.set('tanggal_akhir', tanggalAkhir.trim());
 
-    const endpoint = isAdmin
-      ? `${import.meta.env.VITE_API_URL}/api/transactions`
-      : `${import.meta.env.VITE_API_URL}/api/transactions/me`;
+    const endpoint = `${import.meta.env.VITE_API_URL}/api/transactions/me`;
 
     return `${endpoint}?${params.toString()}`;
-  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir, isAdmin]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir]);
 
   const fetchRiwayat = useCallback(async (page = 1) => {
     setLoading(true);
@@ -597,12 +584,10 @@ export default function Riwayat({ user }) {
         {/* ===== HEADER ===== */}
         <div className="pt-6 pb-5 sm:pt-8">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {isAdmin ? 'Riwayat Transaksi' : 'Riwayat Peminjaman Saya'}
+            Riwayat Peminjaman Saya
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {isAdmin
-              ? 'Riwayat peminjaman & pengembalian alat kerja'
-              : 'Riwayat peminjaman & pengembalian barang Anda'}
+            Riwayat peminjaman & pengembalian barang Anda
           </p>
         </div>
 
@@ -615,7 +600,7 @@ export default function Riwayat({ user }) {
             <input
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-2 focus:ring-[#14a2ba]/15"
               type="text"
-              placeholder={isAdmin ? 'Cari nama barang, SKU, atau peminjam...' : 'Cari nama atau SKU barang...'}
+              placeholder="Cari nama atau SKU barang..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -707,7 +692,7 @@ export default function Riwayat({ user }) {
         <div className="mt-4 flex flex-col gap-3">
           {loading ? (
             <SkeletonList count={4}>
-              <TransactionCardSkeleton columns={isAdmin ? 3 : 2} />
+              <TransactionCardSkeleton columns={2} />
             </SkeletonList>
           ) : error ? (
             <GagalMuatData onRetry={() => fetchRiwayat(currentPage)} />
@@ -721,7 +706,7 @@ export default function Riwayat({ user }) {
             </div>
           ) : (
             filteredData.map((item) => (
-              <TransaksiCard key={item.id} item={item} onClick={setSelectedItem} isAdmin={isAdmin} />
+              <TransaksiCard key={item.id} item={item} onClick={setSelectedItem} />
             ))
           )}
 
@@ -735,7 +720,7 @@ export default function Riwayat({ user }) {
       </div>
 
       {/* ===== DETAIL MODAL ===== */}
-      {selectedItem && <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} isAdmin={isAdmin} />}
+      {selectedItem && <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
 
       {/* ===== FILTER & URUTKAN SHEET ===== */}
       <FilterSortSheet

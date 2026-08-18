@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  QrCode01Icon,
+  Package02Icon,
   ViewIcon,
   ViewOffIcon,
   CheckmarkCircleIcon,
@@ -56,7 +56,7 @@ function CornerBrackets({ size = 'w-4 h-4', color = 'border-[#14a2ba]', thicknes
 }
 
 function QRMark({ className = 'w-7 h-7' }) {
-  return <HugeiconsIcon icon={QrCode01Icon} className={className} color="currentColor" strokeWidth={1.6} />;
+  return <HugeiconsIcon icon={Package02Icon} className={className} color="currentColor" strokeWidth={1.6} />;
 }
 
 export default function LoginRegister({ onLoginSuccess }) {

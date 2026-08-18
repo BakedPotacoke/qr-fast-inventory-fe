@@ -17,8 +17,32 @@ import {
 // selalu `${VITE_API_URL}/api/...`, bukan VITE_API_URL yang sudah mengandung /api.
 const getToken = () => localStorage.getItem("token");
 
-async function fetchSummary() {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/summary`, {
+function getWeekRange(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Minggu
+  const sun = new Date(d); sun.setDate(d.getDate() - day);
+  const sat = new Date(d); sat.setDate(d.getDate() + (6 - day));
+  return { from: toDateKey(sun), to: toDateKey(sat) };
+}
+
+function getMonthRange(date) {
+  const d = new Date(date);
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { from: toDateKey(first), to: toDateKey(last) };
+}
+
+function getYearRange(date) {
+  const d = new Date(date);
+  const first = new Date(d.getFullYear(), 0, 1);
+  const last  = new Date(d.getFullYear(), 11, 31);
+  return { from: toDateKey(first), to: toDateKey(last) };
+}
+
+async function fetchSummary({ from, to } = {}) {
+  let url = `${import.meta.env.VITE_API_URL}/api/dashboard/summary`;
+  if (from && to) url += `?date_from=${from}&date_to=${to}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   if (!res.ok) {
@@ -34,17 +58,30 @@ const STATUS_COLOR = { tersedia: "#0F6E56", dipinjam: "#185FA5", rusak: "#854F0B
 const LAPORAN_LABEL = { baik: "Baik", rusak: "Rusak", hilang: "Hilang" };
 const LAPORAN_COLOR = { baik: "#0F6E56", rusak: "#854F0B", hilang: "#A32D2D" };
 
-function last7Days() {
+const toDateKey = (d) => d.toISOString().slice(0, 10);
+
+// compact=true → bulan saja ("Jan"), untuk range > 14 hari agar X-axis tidak cramped
+const formatTanggal = (d, compact = false) =>
+  d.toLocaleDateString("id-ID", compact
+    ? { month: "short" }
+    : { day: "2-digit", month: "short" }
+  );
+
+function diffDays(from, to) {
+  return Math.round((new Date(to) - new Date(from)) / 86_400_000);
+}
+
+// Hasilkan array tanggal dari from..to (inklusif)
+function daysInRange(from, to) {
   const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d);
+  const cur = new Date(from);
+  const end = new Date(to);
+  while (cur <= end) {
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
   }
   return days;
 }
-const toDateKey = (d) => d.toISOString().slice(0, 10);
-const formatTanggal = (d) => d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 
 const toneClasses = {
   blue: "bg-blue-50 text-blue-700 ring-blue-200",
@@ -99,19 +136,93 @@ function LegendRow({ data }) {
   );
 }
 
+const PRESETS = [
+  { label: "Minggu Ini", key: "week" },
+  { label: "Bulan Ini",  key: "month" },
+  { label: "Tahun Ini",  key: "year" },
+];
+
+function DateRangePicker({ range, onChange, error }) {
+  const now = new Date();
+  const presetRanges = {
+    week:  getWeekRange(now),
+    month: getMonthRange(now),
+    year:  getYearRange(now),
+  };
+
+  const activePreset = PRESETS.find(
+    (p) => range.from === presetRanges[p.key].from && range.to === presetRanges[p.key].to
+  );
+
+  const setPreset = (key) => onChange(presetRanges[key]);
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        {PRESETS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPreset(p.key)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              activePreset?.key === p.key
+                ? "bg-slate-800 text-white"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+        <div className={`flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 ring-1 ${error ? "ring-red-400" : "ring-slate-200"}`}>
+          <HugeiconsIcon icon={Clock01Icon} size={13} color="#94a3b8" strokeWidth={1.5} />
+          <input
+            type="date"
+            value={range.from}
+            onChange={(e) => onChange({ ...range, from: e.target.value })}
+            className="border-none bg-transparent text-xs text-slate-600 outline-none"
+          />
+          <span className="text-xs text-slate-400">–</span>
+          <input
+            type="date"
+            value={range.to}
+            onChange={(e) => onChange({ ...range, to: e.target.value })}
+            className="border-none bg-transparent text-xs text-slate-600 outline-none"
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [range, setRange] = useState(() => getWeekRange(new Date()));
+  const [rangeError, setRangeError] = useState(null);
+
+  const handleRangeChange = (next) => {
+    if (next.from && next.to && next.from > next.to) {
+      setRangeError("Tanggal awal tidak boleh lebih besar dari tanggal akhir.");
+      setRange(next);
+      return;
+    }
+    setRangeError(null);
+    setRange(next);
+  };
 
   useEffect(() => {
+    if (rangeError || !range.from || !range.to) return;
+
     let active = true;
-    fetchSummary()
-      .then((data) => active && setSummary(data))
-      .catch((err) => active && setError(err.message))
-      .finally(() => active && setLoading(false));
+    setError(null);
+
+    fetchSummary(range)
+      .then((data) => { if (active) setSummary(data); })
+      .catch((err) => { if (active) setError(err.message); });
+
     return () => { active = false; };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range]);
 
   if (error) {
     return (
@@ -143,12 +254,15 @@ export default function Dashboard() {
     jumlah: Number(k.jumlah),
   }));
 
+  const rangeDays = diffDays(range.from, range.to);
+  const compactLabel = rangeDays > 14;
   const trenMap = new Map(
     (summary?.trenPeminjaman ?? []).map((t) => [new Date(t.tanggal).toISOString().slice(0, 10), Number(t.jumlah)])
   );
-  const trenPeminjaman = last7Days().map((d) => ({
-    tanggal: formatTanggal(d),
-    jumlah: trenMap.get(toDateKey(d)) ?? 0,
+  const trenPeminjaman = daysInRange(range.from, range.to).map((d) => ({
+    tanggal: toDateKey(d),                              // unik — dipakai recharts sebagai identifier
+    label:   formatTanggal(d, compactLabel),            // display-only, dipakai XAxis tickFormatter
+    jumlah:  trenMap.get(toDateKey(d)) ?? 0,
   }));
 
   const laporanData = (summary?.laporanBreakdown ?? []).map((l) => ({
@@ -169,6 +283,8 @@ export default function Dashboard() {
     { label: "Laporan 30 Hari Terakhir", value: summary?.laporanTerbaru ?? 0, icon: Alert01Icon, tone: "red" },
   ];
 
+  const trenSubtitle = `Jumlah transaksi baru per hari (${rangeDays + 1} hari, ${range.from} – ${range.to})`;
+
   return (
     <div>
       <div>
@@ -182,7 +298,12 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">Filter rentang waktu untuk grafik di bawah</p>
+        <DateRangePicker range={range} onChange={handleRangeChange} error={rangeError} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-2">
           <Card title="Status barang" subtitle="Distribusi kondisi seluruh item">
             <div className="flex items-center gap-4">
@@ -202,7 +323,7 @@ export default function Dashboard() {
         </div>
 
         <div className="lg:col-span-3">
-          <Card title="Tren peminjaman" subtitle="Jumlah transaksi baru per hari (7 hari terakhir)">
+          <Card title="Tren peminjaman" subtitle={trenSubtitle}>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trenPeminjaman} margin={{ left: -20, right: 10 }}>
@@ -213,9 +334,25 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef1f4" />
-                  <XAxis dataKey="tanggal" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="tanggal"
+                    tickFormatter={(iso) => {
+                      // iso = "YYYY-MM-DD" — parse as local midnight to avoid UTC-shift
+                      const [y, m, d] = iso.split("-").map(Number);
+                      return formatTanggal(new Date(y, m - 1, d), compactLabel);
+                    }}
+                    tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={compactLabel ? "preserveStartEnd" : 0}
+                  />
                   <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip />
+                  <Tooltip
+                    labelFormatter={(iso) => {
+                      const [y, m, d] = iso.split("-").map(Number);
+                      return new Date(y, m - 1, d).toLocaleDateString("id-ID", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+                    }}
+                  />
                   <Area type="monotone" dataKey="jumlah" stroke="#185FA5" strokeWidth={2} fill="url(#colorTren)" />
                 </AreaChart>
               </ResponsiveContainer>
