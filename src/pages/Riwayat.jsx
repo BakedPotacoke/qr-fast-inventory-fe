@@ -360,6 +360,7 @@ export default function Riwayat({ user }) {
   const [transaksiList, setTransaksiList]               = useState([]);
   const [pagination, setPagination]                     = useState(null);
   const [currentPage, setCurrentPage]                   = useState(1);
+  const [pageLimit, setPageLimit]                       = useState(15);
   const [loading, setLoading]                           = useState(true);
   const [error, setError]                               = useState(null);
 
@@ -400,7 +401,7 @@ export default function Riwayat({ user }) {
   }, [searchQuery]);
 
   const buildUrl = useCallback((page) => {
-    const params = new URLSearchParams({ page, limit: 15 });
+    const params = new URLSearchParams({ page, limit: pageLimit });
     if (activeFilter !== 'semua') params.set('status', activeFilter);
     if (activeKategori !== 'semua') params.set('kategori', activeKategori);
     if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
@@ -411,7 +412,7 @@ export default function Riwayat({ user }) {
     const endpoint = `${import.meta.env.VITE_API_URL}/api/transactions/me`;
 
     return `${endpoint}?${params.toString()}`;
-  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir, pageLimit]);
 
   const fetchRiwayat = useCallback(async (page = 1) => {
     setLoading(true);
@@ -495,7 +496,7 @@ export default function Riwayat({ user }) {
 
   useEffect(() => {
     fetchRiwayat(currentPage);
-  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, fetchRiwayat]);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, tanggalMulai, tanggalAkhir, pageLimit, fetchRiwayat]);
 
   // Fetch summary terfilter saat activeKategori, debouncedSearchQuery, atau tanggal berubah
   useEffect(() => {
@@ -520,6 +521,11 @@ export default function Riwayat({ user }) {
   const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setPageLimit(newLimit);
+    setCurrentPage(1);
   };
 
   const monthData = useMemo(() => {
@@ -712,7 +718,11 @@ export default function Riwayat({ user }) {
 
           {/* ===== PAGINATION ===== */}
           {!loading && !error && (
-            <Pagination pagination={pagination} onPageChange={handlePageChange} />
+            <Pagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onLimitChange={handleLimitChange}
+            />
           )}
 
           <div className="h-16" />

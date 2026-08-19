@@ -22,7 +22,7 @@ const API_URL      = `${import.meta.env.VITE_API_URL}/api/transactions`;
 const SUMMARY_URL  = `${API_URL}/summary`;
 // GET /api/items/kategori → { data: string[] }
 const CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/api/items/kategori`;
-const PAGE_LIMIT   = 15;
+const DEFAULT_PAGE_LIMIT = 15;
 
 const STATUS_OPTIONS = [
     { value: 'dipinjam', label: 'Dipinjam' },
@@ -54,6 +54,7 @@ export default function Transaksi() {
     const [transactions, setTransactions] = useState([]);
     const [pagination,   setPagination]   = useState(null);
     const [currentPage,  setCurrentPage]  = useState(1);
+    const [pageLimit,    setPageLimit]    = useState(DEFAULT_PAGE_LIMIT);
 
     // ── Statistik global — dari endpoint ringkasan, bukan data halaman aktif ─
     const [summary, setSummary] = useState({ total: 0, dipinjam: 0, selesai: 0 });
@@ -115,11 +116,11 @@ export default function Transaksi() {
     // ── Fetch data halaman aktif ──────────────────────────────────────────────
     // Semua filter (status, kategori, search) dikirim sebagai query string ke server.
     // Client hanya bertanggung jawab untuk sorting data yang sudah dikembalikan.
-    const fetchTransactions = useCallback(async ({ page, status, kategori, search: q, sortBy: s, tanggal_mulai: tm, tanggal_akhir: ta }) => {
+    const fetchTransactions = useCallback(async ({ page, limit, status, kategori, search: q, sortBy: s, tanggal_mulai: tm, tanggal_akhir: ta }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+            const params = new URLSearchParams({ page, limit: limit || pageLimit });
             if (status   && status   !== 'semua') params.set('status',        status);
             if (kategori && kategori !== 'semua') params.set('kategori',      kategori);
             if (q        && q.trim())             params.set('search',        q.trim());
@@ -137,7 +138,7 @@ export default function Transaksi() {
         } finally {
             setIsLoading(false);
         }
-    }, []); // stabil — parameter filter diterima lewat argumen, bukan closure
+    }, [pageLimit]); // stabil — parameter filter diterima lewat argumen, bukan closure
 
     // Debounce input search (500 ms) sebelum mengubah debouncedSearch
     useEffect(() => {
@@ -148,10 +149,11 @@ export default function Transaksi() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Fetch data saat currentPage, statusFilter, activeKategori, debouncedSearch, tanggal, atau sortBy berubah
+    // Fetch data saat currentPage, pageLimit, statusFilter, activeKategori, debouncedSearch, tanggal, atau sortBy berubah
     useEffect(() => {
         fetchTransactions({
             page:          currentPage,
+            limit:         pageLimit,
             status:        statusFilter,
             kategori:      activeKategori,
             search:        debouncedSearch,
@@ -159,7 +161,7 @@ export default function Transaksi() {
             tanggal_mulai: tanggalMulai,
             tanggal_akhir: tanggalAkhir,
         });
-    }, [currentPage, statusFilter, activeKategori, debouncedSearch, sortBy, tanggalMulai, tanggalAkhir, fetchTransactions]);
+    }, [currentPage, pageLimit, statusFilter, activeKategori, debouncedSearch, sortBy, tanggalMulai, tanggalAkhir, fetchTransactions]);
 
     // Fetch ringkasan saat activeKategori, debouncedSearch, atau filter tanggal berubah
     useEffect(() => {
@@ -179,6 +181,11 @@ export default function Transaksi() {
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleLimitChange = (newLimit) => {
+        setPageLimit(newLimit);
+        setCurrentPage(1);
     };
 
     const handleStatusChange = async (transaction, newStatus) => {
@@ -352,6 +359,20 @@ export default function Transaksi() {
                             aria-label="Tanggal pinjam akhir"
                         />
                     </div>
+
+                    {/* Limit Baris Per Halaman */}
+                    <div className="relative shrink-0">
+                        <select
+                            value={pageLimit}
+                            onChange={(e) => handleLimitChange(Number(e.target.value))}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 pr-8 text-sm font-medium text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Jumlah baris per halaman"
+                        >
+                            {[15, 30, 50, 100, 150].map((opt) => (
+                                <option key={opt} value={opt}>{opt} baris / hal</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {/* TABS FILTER STATUS */}
@@ -461,7 +482,11 @@ export default function Transaksi() {
 
             {/* PAGINATION */}
             {!isLoading && !error && (
-                <Pagination pagination={pagination} onPageChange={handlePageChange} />
+                <Pagination
+                    pagination={pagination}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                />
             )}
         </div>
     );

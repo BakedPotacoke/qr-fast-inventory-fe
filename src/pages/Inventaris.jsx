@@ -453,6 +453,7 @@ export default function Inventaris() {
   const [barangList, setBarangList]                     = useState([]);
   const [pagination, setPagination]                     = useState(null);
   const [currentPage, setCurrentPage]                   = useState(1);
+  const [pageLimit, setPageLimit]                       = useState(15);
   const [globalSummary, setGlobalSummary]             = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
   const [filteredSummary, setFilteredSummary]         = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
@@ -469,13 +470,13 @@ export default function Inventaris() {
   }, [searchQuery]);
 
   const buildUrl = useCallback((page) => {
-    const params = new URLSearchParams({ page, limit: 15 });
+    const params = new URLSearchParams({ page, limit: pageLimit });
     if (activeFilter !== 'semua') params.set('status', activeFilter);
     if (activeKategori !== 'semua') params.set('kategori', activeKategori);
     if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
     params.set('sortBy', sortBy);
     return `${import.meta.env.VITE_API_URL}/api/items?${params.toString()}`;
-  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, pageLimit]);
 
   const fetchItems = useCallback(async (page = 1) => {
     setLoading(true);
@@ -591,7 +592,7 @@ export default function Inventaris() {
 
   useEffect(() => {
     fetchItems(currentPage);
-  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, pageLimit, fetchItems]);
 
   useEffect(() => {
     fetchGlobalSummary();
@@ -635,6 +636,11 @@ export default function Inventaris() {
   const handlePageChange = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setPageLimit(newLimit);
+    setCurrentPage(1);
   };
 
   const filters = [
@@ -771,7 +777,11 @@ export default function Inventaris() {
 
           {/* ===== PAGINATION ===== */}
           {!loading && !error && (
-            <Pagination pagination={pagination} onPageChange={handlePageChange} />
+            <Pagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onLimitChange={handleLimitChange}
+            />
           )}
 
           <div className="h-20" />

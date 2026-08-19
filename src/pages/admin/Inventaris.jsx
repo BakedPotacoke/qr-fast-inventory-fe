@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Papa from 'papaparse';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   BarCode01Icon,
@@ -22,13 +23,16 @@ import {
   Clock01Icon,
   AlertDiamondIcon,
   HelpCircleIcon,
+  Upload01Icon,
+  Download01Icon,
+  FileUploadIcon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
 import { useImageViewer } from '../../components/ImageViewer';
 import { showToast, showConfirm } from '../../utils/alert';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/items`;
-const PAGE_LIMIT = 15;
+const DEFAULT_PAGE_LIMIT = 15;
 
 const STATUS_OPTIONS = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
 const SORT_OPTIONS = [
@@ -75,6 +79,7 @@ export default function InventarisAdmin() {
   const [barangList, setBarangList] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit, setPageLimit] = useState(DEFAULT_PAGE_LIMIT);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -98,6 +103,9 @@ export default function InventarisAdmin() {
   const [showForm, setShowForm]   = useState(false);
   const [itemToEdit, setItemToEdit] = useState(null);
 
+  // ── Modal Import ──────────────────────────────────────────────────────────
+  const [showImport, setShowImport] = useState(false);
+
   const authHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
     return { Authorization: `Bearer ${token}` };
@@ -105,13 +113,13 @@ export default function InventarisAdmin() {
 
   // ── Bangun URL fetch berdasarkan state filter ────────────────────────────
   const buildUrl = useCallback((page) => {
-    const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+    const params = new URLSearchParams({ page, limit: pageLimit });
     if (activeFilter !== 'semua')                            params.set('status', activeFilter);
     if (activeKategori !== 'semua')                          params.set('kategori', activeKategori);
     if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
     params.set('sortBy', sortBy);
     return `${API_URL}?${params.toString()}`;
-  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy]);
+  }, [activeFilter, activeKategori, debouncedSearchQuery, sortBy, pageLimit]);
 
   // ── Fetch halaman aktif ──────────────────────────────────────────────────
   const fetchItems = useCallback(async (page = 1) => {
@@ -228,10 +236,10 @@ export default function InventarisAdmin() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch data saat page / filter status / filter kategori / debounced search query / sort berubah
+  // Fetch data saat page / filter status / filter kategori / debounced search query / sort / pageLimit berubah
   useEffect(() => {
     fetchItems(currentPage);
-  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, fetchItems]);
+  }, [currentPage, activeFilter, activeKategori, debouncedSearchQuery, sortBy, pageLimit, fetchItems]);
 
   // Fetch global summary saat mount
   useEffect(() => {
@@ -264,6 +272,12 @@ export default function InventarisAdmin() {
     setCurrentPage(page);
     setSelectedForDelete([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setPageLimit(newLimit);
+    setCurrentPage(1);
+    setSelectedForDelete([]);
   };
 
   // ── Form modal handlers ───────────────────────────────────────────────────
@@ -422,6 +436,14 @@ export default function InventarisAdmin() {
           )}
           <button
             type="button"
+            onClick={() => setShowImport(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#14a2ba] hover:text-[#14a2ba] active:scale-[0.98]"
+          >
+            <HugeiconsIcon icon={Upload01Icon} size={16} strokeWidth={2} />
+            Import CSV
+          </button>
+          <button
+            type="button"
             onClick={handleOpenTambah}
             className="inline-flex items-center gap-1.5 rounded-xl bg-[#14a2ba] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] active:scale-[0.98]"
           >
@@ -510,6 +532,20 @@ export default function InventarisAdmin() {
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Limit Baris Per Halaman — server-side */}
+          <div className="relative shrink-0">
+            <select
+              value={pageLimit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 pr-8 text-sm font-medium text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+              aria-label="Jumlah baris per halaman"
+            >
+              {[15, 30, 50, 100, 150].map((opt) => (
+                <option key={opt} value={opt}>{opt} baris / hal</option>
               ))}
             </select>
           </div>
@@ -708,7 +744,11 @@ export default function InventarisAdmin() {
 
       {/* PAGINATION */}
       {!loading && !error && (
-        <Pagination pagination={pagination} onPageChange={handlePageChange} />
+        <Pagination
+          pagination={pagination}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       )}
 
       {/* FORM MODAL */}
@@ -719,6 +759,257 @@ export default function InventarisAdmin() {
           onSaved={handleSaved}
         />
       )}
+
+      {/* IMPORT MODAL */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            setCurrentPage(1);
+            fetchItems(1);
+            fetchGlobalSummary();
+            fetchFilteredSummary({ kategori: activeKategori, search: debouncedSearchQuery });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ===== IMPORT MODAL =====
+function ImportModal({ onClose, onImported }) {
+  const fileRef                     = useRef(null);
+  const [file, setFile]             = useState(null);
+  const [preview, setPreview]       = useState([]);
+  const [parseError, setParseError] = useState('');
+  const [importing, setImporting]   = useState(false);
+
+  const REQUIRED_COLS    = ['nama_barang', 'qr_code', 'kategori'];
+  const TEMPLATE_HEADERS = ['nama_barang', 'qr_code', 'kategori', 'status'];
+
+  // ── Download template CSV ─────────────────────────────────────────────────
+  const handleDownloadTemplate = () => {
+    const rows = [TEMPLATE_HEADERS];
+    const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'template_import_barang.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Parse CSV ─────────────────────────────────────────────────────────────
+  const handleFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+
+    setParseError('');
+    setPreview([]);
+    setFile(null);
+
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext !== 'csv') {
+      setParseError('Format tidak didukung. Gunakan file .csv');
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+
+    Papa.parse(f, {
+      header:           true,
+      skipEmptyLines:   true,
+      transformHeader:  (h) => h.trim().toLowerCase(),
+      transform:        (v) => v.trim(),
+      complete: ({ data: rows, errors }) => {
+        if (errors.length > 0) {
+          console.error('PapaParse errors:', errors);
+          setParseError('Gagal membaca file. Pastikan format CSV valid.');
+          return;
+        }
+        if (rows.length === 0) {
+          setParseError('File kosong atau tidak ada data.');
+          return;
+        }
+        const missing = REQUIRED_COLS.filter(c => !(c in rows[0]));
+        if (missing.length > 0) {
+          setParseError(`Kolom wajib tidak ditemukan: ${missing.join(', ')}. Pastikan header sesuai template.`);
+          return;
+        }
+        setPreview(rows.slice(0, 5));
+        setFile({ name: f.name, _parsed: rows });
+      },
+      error: (err) => {
+        console.error(err);
+        setParseError('Gagal membaca file. Pastikan format CSV valid.');
+      },
+    });
+  };
+
+  // ── Kirim ke server ───────────────────────────────────────────────────────
+  const handleImport = async () => {
+    if (!file?._parsed) return;
+
+    const confirmed = await showConfirm({
+      title:             'Konfirmasi Import',
+      text:              `Yakin ingin mengimport ${file._parsed.length} baris data dari "${file.name}"?`,
+      confirmButtonText: 'Ya, Import',
+      confirmButtonColor: '#14a2ba',
+    });
+    if (!confirmed) return;
+
+    setImporting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res   = await fetch(`${API_URL}/import`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ items: file._parsed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal import');
+
+      const { inserted, skipped, errors } = data.results ?? {};
+
+      if (inserted > 0) {
+        showToast.success(data.message);
+        onImported();
+        onClose();
+      } else {
+        // Tidak ada yang masuk — tampilkan warning tapi tetap di modal
+        showToast.warning(data.message || 'Tidak ada barang baru yang diimport.');
+      }
+
+      // Peringatan tambahan jika ada baris bermasalah
+      if (skipped?.length > 0) {
+        const detail = skipped.slice(0, 3).map(s => `${s.qr_code}: ${s.message}`).join('\n');
+        const more   = skipped.length > 3 ? `\n...dan ${skipped.length - 3} lainnya` : '';
+        showToast.warning(`${skipped.length} baris dilewati:\n${detail}${more}`);
+      }
+      if (errors?.length > 0) {
+        const detail = errors.slice(0, 3).map(e => `Baris ${e.row} (${e.qr_code}): ${e.message}`).join('\n');
+        const more   = errors.length > 3 ? `\n...dan ${errors.length - 3} lainnya` : '';
+        showToast.error(`${errors.length} baris error:\n${detail}${more}`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast.error(err.message || 'Terjadi kesalahan saat import.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const reset = () => {
+    setFile(null);
+    setPreview([]);
+    setParseError('');
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-y-auto rounded-3xl bg-white p-5 shadow-xl sm:p-6" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a2ba]/10 text-[#14a2ba]">
+              <HugeiconsIcon icon={Upload01Icon} size={17} strokeWidth={1.75} />
+            </div>
+            <h2 className="text-base font-bold text-slate-900">Import Barang</h2>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200">
+            <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-4">
+
+          {/* Download template */}
+          <div className="flex items-center justify-between rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Belum punya template?</p>
+              <p className="text-xs text-slate-500">Unduh template CSV lalu isi datanya</p>
+            </div>
+            <button type="button" onClick={handleDownloadTemplate}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#14a2ba] hover:text-[#14a2ba]">
+              <HugeiconsIcon icon={Download01Icon} size={14} strokeWidth={2} />
+              Unduh Template
+            </button>
+          </div>
+
+          {/* Upload area */}
+          {!file ? (
+            <button type="button" onClick={() => fileRef.current?.click()}
+              className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition hover:border-[#14a2ba] hover:bg-[#14a2ba]/5">
+              <HugeiconsIcon icon={FileUploadIcon} size={24} strokeWidth={1.5} className="text-slate-400" />
+              <span className="text-sm font-medium text-slate-500">Klik untuk pilih file <span className="text-[#14a2ba]">.csv</span></span>
+            </button>
+          ) : (
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <HugeiconsIcon icon={FileUploadIcon} size={18} strokeWidth={1.75} className="text-[#14a2ba]" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">{file.name}</p>
+                  <p className="text-xs text-slate-500">{file._parsed.length} baris data ditemukan</p>
+                </div>
+              </div>
+              <button type="button" onClick={reset} className="text-xs font-semibold text-slate-400 hover:text-red-500">Ganti</button>
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+
+          {/* Parse error */}
+          {parseError && (
+            <div className="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-600">
+              <HugeiconsIcon icon={AlertCircleIcon} size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" />
+              {parseError}
+            </div>
+          )}
+
+          {/* Preview tabel */}
+          {preview.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-500">Preview (5 baris pertama)</p>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      {TEMPLATE_HEADERS.map(h => <th key={h} className="px-3 py-2 font-semibold">{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {preview.map((row, i) => (
+                      <tr key={i}>
+                        {TEMPLATE_HEADERS.map(h => (
+                          <td key={h} className="px-3 py-2 text-slate-700">{row[h] || <span className="text-slate-300">—</span>}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {file?._parsed.length > 5 && (
+                <p className="mt-1 text-xs text-slate-400">...dan {file._parsed.length - 5} baris lainnya</p>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+              Batal
+            </button>
+            {file?._parsed && (
+              <button type="button" onClick={handleImport} disabled={importing}
+                className="flex-1 rounded-xl bg-[#14a2ba] py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#14a2ba]/25 transition hover:bg-[#0f8298] disabled:opacity-50">
+                {importing ? 'Mengimport...' : `Import ${file._parsed.length} Barang`}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

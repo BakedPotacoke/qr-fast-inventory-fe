@@ -25,7 +25,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}/api/reports`;
 const SUMMARY_URL = `${API_URL}/summary`;
 // GET /api/items/kategori → { data: string[] }
 const CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/api/items/kategori`;
-const PAGE_LIMIT = 15;
+const DEFAULT_PAGE_LIMIT = 15;
 
 const SORT_OPTIONS = [
     { key: 'terbaru', label: 'Terbaru Dilaporkan' },
@@ -74,6 +74,7 @@ export default function Laporan() {
     const [reports, setReports] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [pageLimit, setPageLimit] = useState(DEFAULT_PAGE_LIMIT);
 
     // ── Statistik & metadata global — bukan dari data halaman aktif ──────────
     // summary     → { total, bulan_ini, perlu_perhatian }
@@ -93,9 +94,6 @@ export default function Laporan() {
     const [activeKondisi, setActiveKondisi] = useState('semua');
     const [activeKategori, setActiveKategori] = useState('semua');
     const [sortBy, setSortBy] = useState('terbaru');
-    // Filter tanggal ditangani sisi client karena belum didukung endpoint backend.
-    // Untuk akurasi penuh lintas halaman, tambahkan tanggal_mulai/tanggal_akhir
-    // ke ItemReport.findAll dan teruskan lewat query string seperti filter lainnya.
     const { openViewer } = useImageViewer();
     const [tanggalMulai, setTanggalMulai] = useState('');
     const [tanggalAkhir, setTanggalAkhir] = useState('');
@@ -155,11 +153,11 @@ export default function Laporan() {
     // ── Fetch data halaman aktif ──────────────────────────────────────────────
     // Filter jenis_laporan, kategori, search, dan tanggal (mulai & akhir) dikirim sebagai query string ke server.
     // Client hanya bertanggung jawab untuk sorting data halaman aktif.
-    const fetchReports = useCallback(async ({ page, jenis_laporan, kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta, sortBy: s }) => {
+    const fetchReports = useCallback(async ({ page, limit, jenis_laporan, kategori, search: q, tanggal_mulai: tm, tanggal_akhir: ta, sortBy: s }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+            const params = new URLSearchParams({ page, limit: limit || pageLimit });
             if (jenis_laporan && jenis_laporan !== 'semua') params.set('jenis_laporan', jenis_laporan);
             if (kategori && kategori !== 'semua') params.set('kategori', kategori);
             if (q && q.trim()) params.set('search', q.trim());
@@ -177,7 +175,7 @@ export default function Laporan() {
         } finally {
             setIsLoading(false);
         }
-    }, []); // stabil — parameter filter diterima lewat argumen, bukan closure
+    }, [pageLimit]); // stabil — parameter filter diterima lewat argumen, bukan closure
 
     // Debounce input search (500 ms) sebelum mengubah debouncedSearch
     useEffect(() => {
@@ -188,10 +186,11 @@ export default function Laporan() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Fetch data saat currentPage, activeKondisi, activeKategori, debouncedSearch, filter tanggal, atau sortBy berubah
+    // Fetch data saat currentPage, pageLimit, activeKondisi, activeKategori, debouncedSearch, filter tanggal, atau sortBy berubah
     useEffect(() => {
         fetchReports({
             page: currentPage,
+            limit: pageLimit,
             jenis_laporan: activeKondisi,
             kategori: activeKategori,
             search: debouncedSearch,
@@ -199,7 +198,7 @@ export default function Laporan() {
             tanggal_akhir: tanggalAkhir,
             sortBy,
         });
-    }, [currentPage, activeKondisi, activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, sortBy, fetchReports]);
+    }, [currentPage, pageLimit, activeKondisi, activeKategori, debouncedSearch, tanggalMulai, tanggalAkhir, sortBy, fetchReports]);
 
     // Fetch breakdown ringkasan saat activeKategori, debouncedSearch, atau filter tanggal berubah
     useEffect(() => {
@@ -219,6 +218,11 @@ export default function Laporan() {
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleLimitChange = (newLimit) => {
+        setPageLimit(newLimit);
+        setCurrentPage(1);
     };
 
     // Ekspor CSV: ambil semua data dari server dengan filter server-side aktif (termasuk filter tanggal).
@@ -359,12 +363,26 @@ export default function Laporan() {
                         </select>
                     </div>
 
-                    {/* Rentang Tanggal */}
+                    {/* Rentang Tanggal Pinjam */}
                     <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="shrink-0 text-slate-400" />
-                        <input type="date" value={tanggalMulai} onChange={(e) => { setTanggalMulai(e.target.value); setCurrentPage(1); }} className="bg-transparent text-sm text-slate-600 outline-none" aria-label="Tanggal laporan mulai" />
+                        <input type="date" value={tanggalMulai} onChange={(e) => { setTanggalMulai(e.target.value); setCurrentPage(1); }} className="bg-transparent text-sm text-slate-600 outline-none" aria-label="Tanggal pinjam mulai" />
                         <span className="text-sm text-slate-400">-</span>
-                        <input type="date" value={tanggalAkhir} onChange={(e) => { setTanggalAkhir(e.target.value); setCurrentPage(1); }} className="bg-transparent text-sm text-slate-600 outline-none" aria-label="Tanggal laporan akhir" />
+                        <input type="date" value={tanggalAkhir} onChange={(e) => { setTanggalAkhir(e.target.value); setCurrentPage(1); }} className="bg-transparent text-sm text-slate-600 outline-none" aria-label="Tanggal pinjam akhir" />
+                    </div>
+
+                    {/* Limit Baris Per Halaman */}
+                    <div className="relative shrink-0">
+                        <select
+                            value={pageLimit}
+                            onChange={(e) => handleLimitChange(Number(e.target.value))}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 pr-8 text-sm font-medium text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Jumlah baris per halaman"
+                        >
+                            {[15, 30, 50, 100, 150].map((opt) => (
+                                <option key={opt} value={opt}>{opt} baris / hal</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
@@ -502,7 +520,11 @@ export default function Laporan() {
 
             {/* PAGINATION */}
             {!isLoading && !error && (
-                <Pagination pagination={pagination} onPageChange={handlePageChange} />
+                <Pagination
+                    pagination={pagination}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                />
             )}
         </div>
     );

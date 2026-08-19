@@ -19,7 +19,7 @@ import {
 import Pagination from '../../components/Pagination';
 import { showToast, showConfirm } from '../../utils/alert';
 
-const PAGE_LIMIT = 15;
+const DEFAULT_PAGE_LIMIT = 15;
 
 const ROLE_OPTIONS = [
     { value: 'pegawai', label: 'Pegawai' },
@@ -501,6 +501,7 @@ export default function UserManagement({ currentUser }) {
     const [users, setUsers] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [pageLimit, setPageLimit] = useState(DEFAULT_PAGE_LIMIT);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
 
@@ -525,12 +526,12 @@ export default function UserManagement({ currentUser }) {
 
     // ── Bangun URL fetch ─────────────────────────────────────────────────────
     const buildUrl = useCallback((page) => {
-        const params = new URLSearchParams({ page, limit: PAGE_LIMIT });
+        const params = new URLSearchParams({ page, limit: pageLimit });
         if (roleFilter !== 'semua')       params.set('role', roleFilter);
         if (debouncedSearch && debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
         params.set('sortBy', sortBy);
         return `${import.meta.env.VITE_API_URL}/api/users?${params.toString()}`;
-    }, [roleFilter, debouncedSearch, sortBy]);
+    }, [roleFilter, debouncedSearch, sortBy, pageLimit]);
 
     // ── Fetch halaman pengguna ───────────────────────────────────────────────
     const fetchUsers = useCallback(async (page = 1) => {
@@ -618,10 +619,10 @@ export default function UserManagement({ currentUser }) {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Fetch data saat currentPage, roleFilter, debouncedSearch, atau sortBy berubah
+    // Fetch data saat currentPage, roleFilter, debouncedSearch, sortBy, atau pageLimit berubah
     useEffect(() => {
         fetchUsers(currentPage);
-    }, [currentPage, roleFilter, debouncedSearch, sortBy, fetchUsers]);
+    }, [currentPage, roleFilter, debouncedSearch, sortBy, pageLimit, fetchUsers]);
 
     // Fetch stats global saat mount
     useEffect(() => {
@@ -668,6 +669,11 @@ export default function UserManagement({ currentUser }) {
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleLimitChange = (newLimit) => {
+        setPageLimit(newLimit);
+        setCurrentPage(1);
     };
 
     // ── Handler filter role ──────────────────────────────────────────────────
@@ -771,6 +777,20 @@ export default function UserManagement({ currentUser }) {
                         </select>
                     </div>
 
+                    {/* Limit Baris Per Halaman */}
+                    <div className="relative shrink-0">
+                        <select
+                            value={pageLimit}
+                            onChange={(e) => handleLimitChange(Number(e.target.value))}
+                            className="appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-3 pr-8 text-sm font-medium text-slate-700 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
+                            aria-label="Jumlah baris per halaman"
+                        >
+                            {[15, 30, 50, 100, 150].map((opt) => (
+                                <option key={opt} value={opt}>{opt} baris / hal</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <button
                         type="button"
                         onClick={() => setFormModal({ mode: 'create' })}
@@ -855,7 +875,11 @@ export default function UserManagement({ currentUser }) {
 
             {/* PAGINATION */}
             {!loading && !loadError && (
-                <Pagination pagination={pagination} onPageChange={handlePageChange} />
+                <Pagination
+                    pagination={pagination}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                />
             )}
 
             {formModal && (
