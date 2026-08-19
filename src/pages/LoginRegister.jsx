@@ -199,11 +199,11 @@ import { useState } from 'react';
               <QRMark className="w-7 h-7" />
               <CornerBrackets size="w-3 h-3" thickness="border-2" color="border-[#14a2ba]" />
             </div>
-            <span className="font-display font-semibold text-lg tracking-tight">QRFast</span>
+            <span className="font-display font-semibold text-lg tracking-tight">Inventaris STI OPS</span>
           </div>
 
           <p className="relative font-mono-tag text-[11px] text-[#6B7570]">
-            © {new Date().getFullYear()} QRFast — Inventory OS
+            © {new Date().getFullYear()} Inventaris STI OPS — Inventory OS
           </p>
         </div>
 
@@ -213,7 +213,7 @@ import { useState } from 'react';
             <QRMark className="w-5 h-5" />
           </div>
           <div>
-            <p className="font-display font-semibold text-sm leading-none">QRFast</p>
+            <p className="font-display font-semibold text-sm leading-none">Inventaris STI OPS</p>
             <p className="font-mono-tag text-[10px] text-[#8A948E] mt-1">Sistem Inventaris QR</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ import { useState } from 'react';
                 {mode === 'login' ? 'Masuk' : 'Buat akun baru'}
               </h1>
               <p className="text-sm text-slate-500 mt-2">
-                {mode === 'login' ? 'Masuk ke sistem inventaris QRFast Anda.' : 'Daftar sebagai pengguna baru QRFast.'}
+                {mode === 'login' ? 'Masuk ke sistem Inventaris STI OPS Anda.' : 'Daftar sebagai pengguna baru Inventaris STI OPS.'}
               </p>
             </div>
 
@@ -304,16 +304,9 @@ import { useState } from 'react';
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                    Password
-                  </label>
-                  {mode === 'login' && (
-                    <a href="#lupa-password" className="text-xs font-semibold text-[#14a2ba] hover:text-[#0d8194]">
-                      Lupa password?
-                    </a>
-                  )}
-                </div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Password
+                </label>
 
                 <div className="relative">
                   <input
@@ -384,7 +377,7 @@ import { useState } from 'react';
             {/* Footer/Switch Area */}
             <div className="mt-8 pt-6 border-t border-slate-200 text-center">
               <p className="text-sm text-slate-600">
-                {mode === 'login' ? 'Belum punya akun QRFast?' : 'Sudah punya akun QRFast?'}{' '}
+                {mode === 'login' ? 'Belum punya akun Inventaris STI OPS?' : 'Sudah punya akun Inventaris STI OPS?'}{' '}
                 <button
                   type="button"
                   onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}

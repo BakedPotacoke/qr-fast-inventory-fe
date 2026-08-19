@@ -30,6 +30,7 @@ import {
 import Pagination from '../../components/Pagination';
 import { useImageViewer } from '../../components/ImageViewer';
 import { showToast, showConfirm } from '../../utils/alert';
+import { toSentenceCase } from '../../utils/string';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/items`;
 const DEFAULT_PAGE_LIMIT = 15;
@@ -1203,7 +1204,7 @@ function BarangFormModal({ item, onClose, onSaved }) {
       const formData = new FormData();
       formData.append('nama_barang', form.nama.trim());
       formData.append('qr_code', form.sku.trim().toUpperCase());
-      formData.append('kategori', form.kategori.trim());
+      formData.append('kategori', toSentenceCase(form.kategori));
       formData.append('status', form.status);
       if (gambarFile) {
         formData.append('gambar', gambarFile);

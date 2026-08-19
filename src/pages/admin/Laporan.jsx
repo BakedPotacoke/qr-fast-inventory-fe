@@ -50,8 +50,9 @@ const KONDISI_STYLE = {
 
 // Buat & unduh file CSV dari array data laporan
 const exportToCsv = (rows) => {
-    const header = ['Peminjam', 'Barang', 'Kategori', 'Kondisi', 'Keterangan', 'Waktu Pinjam', 'Waktu Kembali'];
+    const header = ['ID Laporan', 'Peminjam', 'Barang', 'Kategori', 'Kondisi', 'Keterangan', 'Waktu Pinjam', 'Waktu Kembali'];
     const body = rows.map((r) => [
+        `#${r.id}`,
         r.peminjam, r.nama_barang, r.kategori,
         KONDISI_STYLE[r.jenis_laporan]?.label ?? r.jenis_laporan,
         r.keterangan,
@@ -322,7 +323,7 @@ export default function Laporan() {
                             type="text"
                             value={search}
                             onChange={handleSearchChange}
-                            placeholder="Cari nama barang, peminjam, atau kategori..."
+                            placeholder="Cari ID laporan, nama barang, peminjam, atau kategori..."
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                         />
                         {search && (
@@ -441,6 +442,7 @@ export default function Laporan() {
                             <thead className="bg-slate-50/80 text-slate-500">
                                 <tr>
                                     <th className="w-12 px-4 py-3 text-xs font-semibold uppercase tracking-wide">No</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">ID Laporan</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Peminjam</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Barang</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Kategori</th>
@@ -463,6 +465,11 @@ export default function Laporan() {
                                     return (
                                         <tr key={r.id} className="transition-colors hover:bg-slate-50/70">
                                             <td className="px-4 py-2.5 text-slate-500">{rowNumber}</td>
+                                            <td className="px-4 py-2.5">
+                                                <span className="inline-flex items-center font-mono text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
+                                                    #{r.id}
+                                                </span>
+                                            </td>
                                             <td className="px-4 py-2.5 font-medium text-slate-800">{r.peminjam || '-'}</td>
                                             <td className="px-4 py-2.5">
                                                 <div className="font-medium text-slate-800">{r.nama_barang || '-'}</div>

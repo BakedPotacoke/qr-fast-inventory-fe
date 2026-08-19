@@ -45,7 +45,7 @@ export default function AdminSidebar({ open, onClose, onLogout }) {
       >
         <div className="flex items-center justify-between px-5 h-16 border-b border-slate-100 shrink-0">
           <div>
-            <p className="text-sm font-bold text-slate-900 leading-none">QRFast</p>
+            <p className="text-sm font-bold text-slate-900 leading-none">Inventaris STI OPS</p>
             <p className="text-[11px] text-[#14a2ba] font-semibold mt-1">Admin Panel</p>
           </div>
           <button

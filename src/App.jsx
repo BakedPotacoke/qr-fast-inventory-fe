@@ -86,15 +86,23 @@ function App() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!response.ok) throw new Error('Session tidak valid');
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+          return;
+        }
+
+        if (!response.ok) return;
 
         const data = await response.json();
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setUser(data.user);
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+        if (data?.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setUser(data.user);
+        }
+      } catch (err) {
+        // Network error saat backend baru boot: jangan langsung hapus token
+        console.warn('Gagal koneksi server saat cek session:', err.message);
       }
     };
 

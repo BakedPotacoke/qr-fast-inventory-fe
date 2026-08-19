@@ -11,6 +11,7 @@ import {
   ArrowRight01Icon,
   Search01Icon,
   CheckmarkCircle01Icon,
+  Tag01Icon,
 } from '@hugeicons/core-free-icons';
 import GagalMuatData from '../components/GagalMuatData';
 import { TransactionCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
@@ -87,7 +88,10 @@ function TransaksiCard({ item, onClick }) {
               <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2.5} />
             </div>
           </div>
-          <div className="mt-1">
+          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+            <span className="inline-flex items-center rounded-md bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">
+              #{item.id}
+            </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-500">
               <HugeiconsIcon icon={BarCode01Icon} size={11} strokeWidth={2} className="text-slate-400" />
               {item.sku}
@@ -131,6 +135,7 @@ function DetailModal({ item, onClose }) {
   const status = STATUS_CONFIG[item.status];
 
   const rows = [
+    { icon: Tag01Icon, label: 'ID Transaksi', value: `#${item.id}` },
     { icon: BarCode01Icon, label: 'Stock Keeping Unit', value: item.sku },
     { icon: Calendar03Icon, label: 'Waktu Pinjam', value: item.waktu_pinjam },
     {
@@ -606,7 +611,7 @@ export default function Riwayat({ user }) {
             <input
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#14a2ba] focus:bg-white focus:ring-2 focus:ring-[#14a2ba]/15"
               type="text"
-              placeholder="Cari nama atau SKU barang..."
+              placeholder="Cari ID transaksi, nama atau SKU barang..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

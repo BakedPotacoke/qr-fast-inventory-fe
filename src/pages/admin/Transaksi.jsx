@@ -299,7 +299,7 @@ export default function Transaksi() {
                             type="text"
                             value={search}
                             onChange={handleSearchChange}
-                            placeholder="Cari nama barang, peminjam, atau SKU..."
+                            placeholder="Cari ID transaksi, nama barang, peminjam, atau SKU..."
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#14a2ba] focus:bg-white focus:ring-4 focus:ring-[#14a2ba]/10"
                         />
                         {search && (
@@ -430,6 +430,7 @@ export default function Transaksi() {
                             <thead className="bg-slate-50/80 text-slate-500">
                                 <tr>
                                     <th className="w-12 px-4 py-3 text-xs font-semibold uppercase tracking-wide">No</th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">ID Transaksi</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Barang</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Peminjam</th>
                                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Kategori</th>
@@ -446,6 +447,11 @@ export default function Transaksi() {
                                     return (
                                         <tr key={t.id} className="transition-colors hover:bg-slate-50/70">
                                             <td className="px-4 py-2.5 text-slate-500">{rowNumber}</td>
+                                            <td className="px-4 py-2.5">
+                                                <span className="inline-flex items-center font-mono text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
+                                                    #{t.id}
+                                                </span>
+                                            </td>
                                             <td className="px-4 py-2.5">
                                                 <div className="font-medium text-slate-800">{t.nama_barang}</div>
                                                 <div className="font-mono text-xs text-slate-400">{t.sku}</div>
