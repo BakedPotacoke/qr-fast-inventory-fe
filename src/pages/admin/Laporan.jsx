@@ -17,6 +17,7 @@ import {
     SortByDown01Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import StatCard from './components/StatCard';
 import { useImageViewer } from '../../components/ImageViewer';
 import { showToast } from '../../utils/alert';
 
@@ -265,9 +266,9 @@ export default function Laporan() {
 
     // ── Statistik dari API ringkasan global ───────────────────────────────────
     const stats = [
-        { key: 'total', label: 'Total Laporan', value: summary.total, icon: PackageIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-        { key: 'bulan-ini', label: 'Laporan Bulan Ini', value: summary.bulan_ini, icon: Calendar03Icon, iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200' },
-        { key: 'perlu-perhatian', label: 'Kondisi Rusak/Hilang', value: summary.perlu_perhatian, icon: AlertCircleIcon, iconWrap: 'bg-red-50 text-red-700 ring-red-200' },
+        { key: 'total', label: 'Total Laporan', value: summary.total, icon: PackageIcon, tone: 'primary' },
+        { key: 'bulan-ini', label: 'Laporan Bulan Ini', value: summary.bulan_ini, icon: Calendar03Icon, tone: 'amber' },
+        { key: 'perlu-perhatian', label: 'Kondisi Rusak/Hilang', value: summary.perlu_perhatian, icon: AlertCircleIcon, tone: 'red' },
     ];
 
     const totalFiltered = useMemo(() => {
@@ -309,15 +310,7 @@ export default function Laporan() {
             {/* STAT CARDS */}
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {stats.map((s) => (
-                    <div key={s.key} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${s.iconWrap}`}>
-                            <HugeiconsIcon icon={s.icon} size={20} strokeWidth={1.5} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-semibold leading-none text-slate-800">{s.value}</p>
-                            <p className="mt-1 text-xs text-slate-500">{s.label}</p>
-                        </div>
-                    </div>
+                    <StatCard key={s.key} {...s} />
                 ))}
             </div>
 

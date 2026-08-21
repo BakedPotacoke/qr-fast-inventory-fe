@@ -28,6 +28,7 @@ import {
   FileUploadIcon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import StatCard from './components/StatCard';
 import { useImageViewer } from '../../components/ImageViewer';
 import { showToast, showConfirm } from '../../utils/alert';
 import { toSentenceCase } from '../../utils/string';
@@ -400,10 +401,10 @@ export default function InventarisAdmin() {
 
   // ── Stats dari global summary (tidak berubah saat filter diterapkan) ────
   const stats = [
-    { key: 'semua', label: 'Total Barang', count: globalSummary.total, icon: PackageIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-    { key: 'tersedia', label: 'Tersedia', count: globalSummary.tersedia, icon: STATUS_CONFIG.tersedia.icon, iconWrap: STATUS_CONFIG.tersedia.iconWrap },
-    { key: 'dipinjam', label: 'Dipinjam', count: globalSummary.dipinjam, icon: STATUS_CONFIG.dipinjam.icon, iconWrap: STATUS_CONFIG.dipinjam.iconWrap },
-    { key: 'bermasalah', label: 'Rusak / Hilang', count: globalSummary.rusak + globalSummary.hilang, icon: AlertDiamondIcon, iconWrap: STATUS_CONFIG.rusak.iconWrap },
+    { key: 'semua', label: 'Total Barang', count: globalSummary.total, icon: PackageIcon, tone: 'primary' },
+    { key: 'tersedia', label: 'Tersedia', count: globalSummary.tersedia, icon: STATUS_CONFIG.tersedia.icon, tone: 'emerald' },
+    { key: 'dipinjam', label: 'Dipinjam', count: globalSummary.dipinjam, icon: STATUS_CONFIG.dipinjam.icon, tone: 'amber' },
+    { key: 'bermasalah', label: 'Rusak / Hilang', count: globalSummary.rusak + globalSummary.hilang, icon: AlertDiamondIcon, tone: 'red' },
   ];
 
   // ── Tab filter status — jumlah menyesuaikan dengan filter aktif ─────────
@@ -457,18 +458,7 @@ export default function InventarisAdmin() {
       {/* STAT CARDS */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <div
-            key={s.key}
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${s.iconWrap}`}>
-              <HugeiconsIcon icon={s.icon} size={20} strokeWidth={1.5} />
-            </div>
-            <div>
-              <p className="text-2xl font-semibold leading-none text-slate-800">{s.count}</p>
-              <p className="mt-1 text-xs text-slate-500">{s.label}</p>
-            </div>
-          </div>
+          <StatCard key={s.key} {...s} />
         ))}
       </div>
 
@@ -562,8 +552,8 @@ export default function InventarisAdmin() {
                 type="button"
                 onClick={() => handleFilterChange(f.key)}
                 className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active
-                    ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
               >
                 {f.label}

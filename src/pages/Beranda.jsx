@@ -10,11 +10,13 @@ import {
   CheckmarkCircle02Icon,
   Wrench01Icon,
   SearchRemoveIcon,
+  Search01Icon,
 } from '@hugeicons/core-free-icons';
 import headerBg from '../assets/header-bg.webp';
 import GagalMuatData from '../components/GagalMuatData';
 import { InlineCardSkeleton, SkeletonList } from '../components/ListCardSkeleton';
 import { showToast } from '../utils/alert';
+import { useImageViewer } from '../components/ImageViewer';
 
 // ===== HELPER =====
 function getSapaan() {
@@ -177,6 +179,15 @@ function LaporHilangModal({ item, onClose, onSuccess }) {
 // ===== MAIN COMPONENT =====
 export default function Beranda({ user }) {
   const navigate = useNavigate();
+  const { openViewer } = useImageViewer();
+
+  const handleThumbnailClick = (e, gambar) => {
+    if (gambar) {
+      e.stopPropagation();
+      const imgUrl = gambar.startsWith('http') ? gambar : `${import.meta.env.VITE_API_URL}${gambar}`;
+      openViewer(imgUrl);
+    }
+  };
   const [dashboardData, setDashboardData] = useState({
     pinjaman: [],
     riwayat: [],
@@ -383,11 +394,27 @@ export default function Beranda({ user }) {
                   key={item.id}
                 >
                   <div className="pinjaman-info flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="pinjaman-img h-16 w-16 sm:h-20 sm:w-20 rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-all duration-200">
-                      {item.gambar
-                        ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
-                        : <IconBox />
-                      }
+                    <div
+                      className={`group/thumb relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 transition-all ${item.gambar ? 'cursor-pointer hover:ring-[#14a2ba]/40' : ''}`}
+                      onClick={(e) => handleThumbnailClick(e, item.gambar)}
+                      title={item.gambar ? 'Klik untuk memperbesar gambar' : undefined}
+                    >
+                      {item.gambar ? (
+                        <>
+                          <img
+                            src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
+                            alt={item.nama_barang}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover/thumb:scale-110"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
+                            <HugeiconsIcon icon={Search01Icon} size={16} className="text-white drop-shadow-md" strokeWidth={2.5} />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-slate-400">
+                          <IconBox />
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <p className="pinjaman-nama text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>
@@ -453,11 +480,27 @@ export default function Beranda({ user }) {
                     {formatTanggalKembali(item.waktu_kembali)}
                   </span>
                   <div className="riwayat-info flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="riwayat-img h-16 w-16 sm:h-20 sm:w-20 rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 text-slate-400 flex items-center justify-center overflow-hidden shrink-0 transition-all duration-200">
-                      {item.gambar
-                        ? <img className="w-full h-full object-cover" src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`} alt={item.nama_barang} />
-                        : <IconBox />
-                      }
+                    <div
+                      className={`group/thumb relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 transition-all ${item.gambar ? 'cursor-pointer hover:ring-[#14a2ba]/40' : ''}`}
+                      onClick={(e) => handleThumbnailClick(e, item.gambar)}
+                      title={item.gambar ? 'Klik untuk memperbesar gambar' : undefined}
+                    >
+                      {item.gambar ? (
+                        <>
+                          <img
+                            src={item.gambar.startsWith('http') ? item.gambar : `${import.meta.env.VITE_API_URL}${item.gambar}`}
+                            alt={item.nama_barang}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover/thumb:scale-110"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
+                            <HugeiconsIcon icon={Search01Icon} size={16} className="text-white drop-shadow-md" strokeWidth={2.5} />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-slate-400">
+                          <IconBox />
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <p className="riwayat-nama text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.nama_barang}</p>

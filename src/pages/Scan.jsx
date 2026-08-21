@@ -118,7 +118,6 @@ function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, s
               )}
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#14a2ba]/10 text-[#14a2ba] flex-shrink-0 ml-3">
-              <HugeiconsIcon icon={Alert01Icon} size={20} strokeWidth={1.5} />
             </div>
           </div>
           <p className="mt-2 text-sm text-slate-500">Isi form berikut untuk menyelesaikan pengembalian.</p>

@@ -84,26 +84,7 @@ function daysInRange(from, to) {
   return days;
 }
 
-const toneClasses = {
-  blue: "bg-blue-50 text-blue-700 ring-blue-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  amber: "bg-amber-50 text-amber-700 ring-amber-200",
-  red: "bg-red-50 text-red-700 ring-red-200",
-};
-
-function StatCard({ label, value, icon, tone }) {
-  return (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses[tone]}`}>
-        <HugeiconsIcon icon={icon} size={20} color="currentColor" strokeWidth={1.5} />
-      </div>
-      <div>
-        <p className="text-2xl font-semibold text-slate-800 leading-none">{value}</p>
-        <p className="mt-1 text-xs text-slate-500">{label}</p>
-      </div>
-    </div>
-  );
-}
+import StatCard from "./components/StatCard";
 
 function Card({ title, subtitle, children }) {
   return (
@@ -287,7 +268,7 @@ export default function Dashboard() {
   }));
 
   const stats = [
-    { label: "Total Barang", value: inv.totalBarang ?? 0, icon: PackageIcon, tone: "blue" },
+    { label: "Total Barang", value: inv.totalBarang ?? 0, icon: PackageIcon, tone: "primary" },
     { label: "Total Pengguna", value: summary?.totalPengguna ?? 0, icon: UserGroupIcon, tone: "purple" },
     { label: "Transaksi Aktif", value: summary?.transaksiAktif ?? 0, icon: RepeatIcon, tone: "amber" },
     { label: "Laporan 30 Hari Terakhir", value: summary?.laporanTerbaru ?? 0, icon: Alert01Icon, tone: "red" },

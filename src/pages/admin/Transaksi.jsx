@@ -15,6 +15,7 @@ import {
     Calendar03Icon,
 } from '@hugeicons/core-free-icons';
 import Pagination from '../../components/Pagination';
+import StatCard from './components/StatCard';
 import { showToast, showConfirm } from '../../utils/alert';
 
 const API_URL      = `${import.meta.env.VITE_API_URL}/api/transactions`;
@@ -244,9 +245,9 @@ export default function Transaksi() {
     // ── Statistik dari API ringkasan global ───────────────────────────────────
     // Stat cards menampilkan total global lintas filter — tidak berubah saat filter diterapkan
     const stats = [
-        { key: 'total',    label: 'Total Transaksi',  value: summary.total,    icon: PackageIcon,          iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-        { key: 'dipinjam', label: 'Sedang Dipinjam',  value: summary.dipinjam, icon: Clock01Icon,           iconWrap: 'bg-amber-50 text-amber-700 ring-amber-200'           },
-        { key: 'selesai',  label: 'Selesai',          value: summary.selesai,  icon: CheckmarkCircle02Icon, iconWrap: 'bg-emerald-50 text-emerald-700 ring-emerald-200'     },
+        { key: 'total',    label: 'Total Transaksi',  value: summary.total,    icon: PackageIcon,          tone: 'primary' },
+        { key: 'dipinjam', label: 'Sedang Dipinjam',  value: summary.dipinjam, icon: Clock01Icon,           tone: 'amber'   },
+        { key: 'selesai',  label: 'Selesai',          value: summary.selesai,  icon: CheckmarkCircle02Icon, tone: 'emerald' },
     ];
 
     // Tab filter status — jumlah menyesuaikan dengan filter kategori, search, dan tanggal aktif
@@ -275,15 +276,7 @@ export default function Transaksi() {
             {/* STAT CARDS */}
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {stats.map((s) => (
-                    <div key={s.key} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1 ${s.iconWrap}`}>
-                            <HugeiconsIcon icon={s.icon} size={20} strokeWidth={1.5} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-semibold leading-none text-slate-800">{s.value}</p>
-                            <p className="mt-1 text-xs text-slate-500">{s.label}</p>
-                        </div>
-                    </div>
+                    <StatCard key={s.key} {...s} />
                 ))}
             </div>
 
