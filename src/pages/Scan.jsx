@@ -117,8 +117,6 @@ function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, s
                 <p className="text-xs text-slate-400 mt-0.5">Dipinjam selama {confirmState.durasi_pinjam}</p>
               )}
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#14a2ba]/10 text-[#14a2ba] flex-shrink-0 ml-3">
-            </div>
           </div>
           <p className="mt-2 text-sm text-slate-500">Isi form berikut untuk menyelesaikan pengembalian.</p>
         </div>
@@ -135,11 +133,10 @@ function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, s
           {/* ── Checkbox kondisi rusak ── */}
           <label
             htmlFor="checkbox-rusak"
-            className={`flex items-start gap-3 rounded-2xl border-2 p-4 cursor-pointer transition-colors ${
-              isRusak
+            className={`flex items-start gap-3 rounded-2xl border-2 p-4 cursor-pointer transition-colors ${isRusak
                 ? "border-red-400 bg-red-50"
                 : "border-slate-200 bg-slate-50 hover:border-slate-300"
-            }`}
+              }`}
           >
             <div className="relative mt-0.5 flex-shrink-0">
               <input
@@ -154,11 +151,10 @@ function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, s
                 disabled={submitting}
               />
               <div
-                className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
-                  isRusak
+                className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${isRusak
                     ? "border-red-500 bg-red-500"
                     : "border-slate-300 bg-white"
-                }`}
+                  }`}
               >
                 {isRusak && (
                   <HugeiconsIcon icon={Tick01Icon} size={12} strokeWidth={2.5} color="white" />
@@ -255,17 +251,16 @@ function PengembalianFormModal({ confirmState, onCancel, onSubmit, submitting, s
             <button
               type="submit"
               disabled={submitting || !canSubmit}
-              className={`flex-1 rounded-full py-3.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                isRusak
+              className={`flex-1 rounded-full py-3.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isRusak
                   ? "bg-red-500 hover:bg-red-600"
                   : "bg-[#14a2ba] hover:bg-[#0f8298]"
-              }`}
+                }`}
             >
               {submitting
                 ? "Memproses..."
                 : isRusak
-                ? "Kirim & Tandai Rusak"
-                : "Selesaikan Pengembalian"}
+                  ? "Kirim & Tandai Rusak"
+                  : "Selesaikan Pengembalian"}
             </button>
           </div>
 
@@ -304,7 +299,7 @@ export default function Scan() {
         if (state === 2) {
           await scannerRef.current.stop();
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     setTorchOn(false);
     setTorchSupported(false);
@@ -399,7 +394,7 @@ export default function Scan() {
             setIsProcessing(false);
           }
         },
-        () => {}
+        () => { }
       );
 
       // Cek dukungan flash pada kamera yang sedang aktif.
@@ -523,11 +518,10 @@ export default function Scan() {
             type="button"
             onClick={toggleTorch}
             aria-label={torchOn ? "Matikan flash" : "Nyalakan flash"}
-            className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
-              torchOn
+            className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${torchOn
                 ? "bg-[#14a2ba] text-white"
                 : "bg-black/45 text-white hover:bg-black/60"
-            }`}
+              }`}
           >
             <HugeiconsIcon
               icon={torchOn ? FlashlightIcon : FlashlightOffIcon}
@@ -575,13 +569,12 @@ export default function Scan() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
           <div className="w-full rounded-t-3xl bg-white p-6 text-center sm:max-w-sm sm:rounded-3xl">
             <div
-              className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full ${
-                !isSuccess
+              className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full ${!isSuccess
                   ? "bg-red-50 text-red-500"
                   : isRusak
-                  ? "bg-orange-50 text-orange-500"
-                  : "bg-[#14a2ba]/10 text-[#14a2ba]"
-              }`}
+                    ? "bg-orange-50 text-orange-500"
+                    : "bg-[#14a2ba]/10 text-[#14a2ba]"
+                }`}
             >
               <HugeiconsIcon
                 icon={isSuccess ? (isRusak ? Alert01Icon : CheckmarkCircle02Icon) : CancelCircleIcon}
@@ -594,8 +587,8 @@ export default function Scan() {
                 ? scanResult.status === "pinjam"
                   ? "Berhasil Dipinjam!"
                   : isRusak
-                  ? "Dikembalikan (Rusak)"
-                  : "Berhasil Dikembalikan!"
+                    ? "Dikembalikan (Rusak)"
+                    : "Berhasil Dikembalikan!"
                 : "Scan Gagal"}
             </p>
             <p className="mt-1 text-sm text-slate-500">{scanResult.message}</p>
