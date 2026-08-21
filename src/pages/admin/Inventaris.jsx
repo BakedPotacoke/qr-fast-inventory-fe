@@ -85,23 +85,23 @@ export default function InventarisAdmin() {
   const [error, setError] = useState(null);
 
   // ── Summary stats — globalSummary untuk stat cards, filteredSummary untuk tab counts ──
-  const [globalSummary, setGlobalSummary]     = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
+  const [globalSummary, setGlobalSummary] = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
   const [filteredSummary, setFilteredSummary] = useState({ total: 0, tersedia: 0, dipinjam: 0, rusak: 0, hilang: 0 });
 
   // ── Filter state — dikirim ke server sebagai query params ────────────────
-  const [searchQuery, setSearchQuery]                   = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter]                 = useState('semua');     // status
-  const [activeKategori, setActiveKategori]             = useState('semua');
-  const [sortBy, setSortBy]                             = useState('terbaru');
-  const [kategoriOptions, setKategoriOptions]           = useState([]);
+  const [activeFilter, setActiveFilter] = useState('semua');     // status
+  const [activeKategori, setActiveKategori] = useState('semua');
+  const [sortBy, setSortBy] = useState('terbaru');
+  const [kategoriOptions, setKategoriOptions] = useState([]);
 
   // ── Bulk delete ───────────────────────────────────────────────────────────
   const [selectedForDelete, setSelectedForDelete] = useState([]);
-  const [isDeleting, setIsDeleting]               = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ── Modal Form ────────────────────────────────────────────────────────────
-  const [showForm, setShowForm]   = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [itemToEdit, setItemToEdit] = useState(null);
 
   // ── Modal Import ──────────────────────────────────────────────────────────
@@ -115,8 +115,8 @@ export default function InventarisAdmin() {
   // ── Bangun URL fetch berdasarkan state filter ────────────────────────────
   const buildUrl = useCallback((page) => {
     const params = new URLSearchParams({ page, limit: pageLimit });
-    if (activeFilter !== 'semua')                            params.set('status', activeFilter);
-    if (activeKategori !== 'semua')                          params.set('kategori', activeKategori);
+    if (activeFilter !== 'semua') params.set('status', activeFilter);
+    if (activeKategori !== 'semua') params.set('kategori', activeKategori);
     if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim());
     params.set('sortBy', sortBy);
     return `${API_URL}?${params.toString()}`;
@@ -165,11 +165,11 @@ export default function InventarisAdmin() {
       ]);
 
       setGlobalSummary({
-        total:    totalBody.pagination?.total   ?? 0,
+        total: totalBody.pagination?.total ?? 0,
         tersedia: statusBodies[0].pagination?.total ?? 0,
         dipinjam: statusBodies[1].pagination?.total ?? 0,
-        rusak:    statusBodies[2].pagination?.total ?? 0,
-        hilang:   statusBodies[3].pagination?.total ?? 0,
+        rusak: statusBodies[2].pagination?.total ?? 0,
+        hilang: statusBodies[3].pagination?.total ?? 0,
       });
     } catch {
       // Summary tidak kritis — gagal diam-diam
@@ -185,9 +185,9 @@ export default function InventarisAdmin() {
 
       const buildSummaryParams = (status) => {
         const params = new URLSearchParams({ page: 1, limit: 1 });
-        if (status   && status   !== 'semua') params.set('status',   status);
+        if (status && status !== 'semua') params.set('status', status);
         if (kategori && kategori !== 'semua') params.set('kategori', kategori);
-        if (q        && q.trim())             params.set('search',   q.trim());
+        if (q && q.trim()) params.set('search', q.trim());
         return params.toString();
       };
 
@@ -202,11 +202,11 @@ export default function InventarisAdmin() {
       ]);
 
       setFilteredSummary({
-        total:    totalBody.pagination?.total   ?? 0,
+        total: totalBody.pagination?.total ?? 0,
         tersedia: statusBodies[0].pagination?.total ?? 0,
         dipinjam: statusBodies[1].pagination?.total ?? 0,
-        rusak:    statusBodies[2].pagination?.total ?? 0,
-        hilang:   statusBodies[3].pagination?.total ?? 0,
+        rusak: statusBodies[2].pagination?.total ?? 0,
+        hilang: statusBodies[3].pagination?.total ?? 0,
       });
     } catch {
       // Summary tidak kritis — gagal diam-diam
@@ -251,7 +251,7 @@ export default function InventarisAdmin() {
   useEffect(() => {
     fetchFilteredSummary({
       kategori: activeKategori,
-      search:   debouncedSearchQuery,
+      search: debouncedSearchQuery,
     });
   }, [activeKategori, debouncedSearchQuery, fetchFilteredSummary]);
 
@@ -283,7 +283,7 @@ export default function InventarisAdmin() {
 
   // ── Form modal handlers ───────────────────────────────────────────────────
   const handleOpenTambah = () => { setItemToEdit(null); setShowForm(true); };
-  const handleOpenEdit   = (item) => { setItemToEdit(item); setShowForm(true); };
+  const handleOpenEdit = (item) => { setItemToEdit(item); setShowForm(true); };
 
   const handleSaved = (savedItem, isNew, message) => {
     if (isNew) {
@@ -400,19 +400,19 @@ export default function InventarisAdmin() {
 
   // ── Stats dari global summary (tidak berubah saat filter diterapkan) ────
   const stats = [
-    { key: 'semua',      label: 'Total Barang',   count: globalSummary.total,                      icon: PackageIcon,      iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
-    { key: 'tersedia',   label: 'Tersedia',        count: globalSummary.tersedia,                   icon: STATUS_CONFIG.tersedia.icon,  iconWrap: STATUS_CONFIG.tersedia.iconWrap },
-    { key: 'dipinjam',   label: 'Dipinjam',        count: globalSummary.dipinjam,                   icon: STATUS_CONFIG.dipinjam.icon,  iconWrap: STATUS_CONFIG.dipinjam.iconWrap },
-    { key: 'bermasalah', label: 'Rusak / Hilang',  count: globalSummary.rusak + globalSummary.hilang,     icon: AlertDiamondIcon, iconWrap: STATUS_CONFIG.rusak.iconWrap },
+    { key: 'semua', label: 'Total Barang', count: globalSummary.total, icon: PackageIcon, iconWrap: 'bg-[#14a2ba]/10 text-[#14a2ba] ring-[#14a2ba]/30' },
+    { key: 'tersedia', label: 'Tersedia', count: globalSummary.tersedia, icon: STATUS_CONFIG.tersedia.icon, iconWrap: STATUS_CONFIG.tersedia.iconWrap },
+    { key: 'dipinjam', label: 'Dipinjam', count: globalSummary.dipinjam, icon: STATUS_CONFIG.dipinjam.icon, iconWrap: STATUS_CONFIG.dipinjam.iconWrap },
+    { key: 'bermasalah', label: 'Rusak / Hilang', count: globalSummary.rusak + globalSummary.hilang, icon: AlertDiamondIcon, iconWrap: STATUS_CONFIG.rusak.iconWrap },
   ];
 
   // ── Tab filter status — jumlah menyesuaikan dengan filter aktif ─────────
   const statusFilters = [
-    { key: 'semua',    label: 'Semua',    count: filteredSummary.total },
+    { key: 'semua', label: 'Semua', count: filteredSummary.total },
     { key: 'tersedia', label: 'Tersedia', count: filteredSummary.tersedia },
     { key: 'dipinjam', label: 'Dipinjam', count: filteredSummary.dipinjam },
-    { key: 'rusak',    label: 'Rusak',    count: filteredSummary.rusak },
-    { key: 'hilang',   label: 'Hilang',   count: filteredSummary.hilang },
+    { key: 'rusak', label: 'Rusak', count: filteredSummary.rusak },
+    { key: 'hilang', label: 'Hilang', count: filteredSummary.hilang },
   ];
 
   return (
@@ -561,11 +561,10 @@ export default function InventarisAdmin() {
                 key={f.key}
                 type="button"
                 onClick={() => handleFilterChange(f.key)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  active
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active
                     ? 'bg-[#14a2ba] text-white shadow-sm shadow-[#14a2ba]/30'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 {f.label}
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
@@ -644,10 +643,10 @@ export default function InventarisAdmin() {
                 </tr>
               ) : (
                 filteredBarang.map((item, index) => {
-                  const isChecked   = selectedForDelete.includes(item.id);
-                  const isBorrowed  = item.status === 'dipinjam';
+                  const isChecked = selectedForDelete.includes(item.id);
+                  const isBorrowed = item.status === 'dipinjam';
                   const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.hilang;
-                  const rowNumber   = pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1;
+                  const rowNumber = pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1;
 
                   return (
                     <tr
@@ -779,19 +778,20 @@ export default function InventarisAdmin() {
 
 // ===== IMPORT MODAL =====
 function ImportModal({ onClose, onImported }) {
-  const fileRef                     = useRef(null);
-  const [file, setFile]             = useState(null);
-  const [preview, setPreview]       = useState([]);
-  const [parseError, setParseError] = useState('');
-  const [importing, setImporting]   = useState(false);
+  const fileRef = useRef(null);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState([]);
+  const [validationError, setValidationError] = useState(null);
+  const [importing, setImporting] = useState(false);
 
-  const REQUIRED_COLS    = ['nama_barang', 'qr_code', 'kategori'];
+  const REQUIRED_COLS = ['nama_barang', 'qr_code', 'kategori'];
   const TEMPLATE_HEADERS = ['nama_barang', 'qr_code', 'kategori', 'status'];
+  const VALID_STATUSES = ['tersedia', 'dipinjam', 'rusak', 'hilang'];
 
   // ── Download template CSV ─────────────────────────────────────────────────
   const handleDownloadTemplate = () => {
     const rows = [TEMPLATE_HEADERS];
-    const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
 
     // Android WebView: kirim via interface langsung (blob URL tidak bisa didownload)
     if (window.Android && typeof window.Android.downloadBase64 === 'function') {
@@ -802,56 +802,136 @@ function ImportModal({ onClose, onImported }) {
 
     // Fallback: browser normal
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
     a.download = 'template_import_barang.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // ── Parse CSV ─────────────────────────────────────────────────────────────
+  // ── Parse & Validasi CSV ──────────────────────────────────────────────────
   const handleFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
 
-    setParseError('');
+    setValidationError(null);
     setPreview([]);
     setFile(null);
 
     const ext = f.name.split('.').pop().toLowerCase();
     if (ext !== 'csv') {
-      setParseError('Format tidak didukung. Gunakan file .csv');
+      setValidationError({
+        title: 'Format File Tidak Didukung',
+        generalMessage: 'Format file tidak didukung. Harap pilih file berekstensi .csv',
+      });
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
 
     Papa.parse(f, {
-      header:           true,
-      skipEmptyLines:   true,
-      transformHeader:  (h) => h.trim().toLowerCase(),
-      transform:        (v) => v.trim(),
-      complete: ({ data: rows, errors }) => {
-        if (errors.length > 0) {
+      header: true,
+      skipEmptyLines: 'greedy',
+      transformHeader: (h) => h.trim().toLowerCase(),
+      transform: (v) => v.trim(),
+      complete: ({ data: rows, errors, meta }) => {
+        if (errors && errors.length > 0) {
           console.error('PapaParse errors:', errors);
-          setParseError('Gagal membaca file. Pastikan format CSV valid.');
+          setValidationError({
+            title: 'Gagal Membaca File CSV',
+            generalMessage: `Struktur file CSV rusak atau tidak terbaca: ${errors[0].message || 'Pastikan pemisah kolom dan tanda kutip valid.'}`,
+          });
           return;
         }
-        if (rows.length === 0) {
-          setParseError('File kosong atau tidak ada data.');
+
+        const detectedHeaders = meta?.fields || (rows.length > 0 ? Object.keys(rows[0]) : []);
+
+        if (detectedHeaders.length === 0 || rows.length === 0) {
+          setValidationError({
+            title: 'File CSV Kosong',
+            generalMessage: 'File tidak berisi data atau baris kolom kosong. Silakan unduh template untuk mengisi data.',
+          });
           return;
         }
-        const missing = REQUIRED_COLS.filter(c => !(c in rows[0]));
-        if (missing.length > 0) {
-          setParseError(`Kolom wajib tidak ditemukan: ${missing.join(', ')}. Pastikan header sesuai template.`);
+
+        // Cek kolom wajib
+        const missingCols = REQUIRED_COLS.filter((col) => !detectedHeaders.includes(col));
+        if (missingCols.length > 0) {
+          setValidationError({
+            title: 'Format Kolom CSV Tidak Sesuai',
+            missingColumns: missingCols,
+            foundColumns: detectedHeaders,
+            expectedColumns: TEMPLATE_HEADERS,
+            generalMessage: 'Nama header kolom pada file CSV tidak sesuai dengan template sistem.',
+          });
           return;
         }
+
+        // Cek batas data
+        if (rows.length > 500) {
+          setValidationError({
+            title: 'Jumlah Data Melebihi Batas',
+            generalMessage: `File berisi ${rows.length} baris data. Maksimal hanya 500 barang per sekali import.`,
+          });
+          return;
+        }
+
+        // Validasi per baris data
+        const rowErrors = [];
+        const seenSku = new Map();
+
+        rows.forEach((row, idx) => {
+          const rowNum = idx + 1;
+          const nama = row.nama_barang?.trim();
+          const sku = row.qr_code?.trim();
+          const kategori = row.kategori?.trim();
+          const status = row.status?.trim().toLowerCase();
+
+          if (!nama) {
+            rowErrors.push({ row: rowNum, message: 'Kolom "nama_barang" wajib diisi.' });
+          }
+          if (!sku) {
+            rowErrors.push({ row: rowNum, message: 'Kolom "qr_code" / SKU wajib diisi.' });
+          } else {
+            const upperSku = sku.toUpperCase();
+            if (seenSku.has(upperSku)) {
+              rowErrors.push({
+                row: rowNum,
+                message: `Duplikat SKU "${sku}" (sama dengan baris ${seenSku.get(upperSku)}).`,
+              });
+            } else {
+              seenSku.set(upperSku, rowNum);
+            }
+          }
+          if (!kategori) {
+            rowErrors.push({ row: rowNum, message: 'Kolom "kategori" wajib diisi.' });
+          }
+          if (status && !VALID_STATUSES.includes(status)) {
+            rowErrors.push({
+              row: rowNum,
+              message: `Status "${status}" tidak valid. Pilihan: ${VALID_STATUSES.join(', ')}.`,
+            });
+          }
+        });
+
+        if (rowErrors.length > 0) {
+          setValidationError({
+            title: 'Terdapat Kesalahan Pada Isi Data',
+            rowErrors,
+            generalMessage: `Ditemukan ${rowErrors.length} kesalahan validasi pada data CSV. Harap perbaiki sebelum mengunggah.`,
+          });
+          return;
+        }
+
         setPreview(rows.slice(0, 5));
         setFile({ name: f.name, _parsed: rows });
       },
       error: (err) => {
         console.error(err);
-        setParseError('Gagal membaca file. Pastikan format CSV valid.');
+        setValidationError({
+          title: 'Gagal Membaca File',
+          generalMessage: 'Terjadi kesalahan saat memproses file CSV. Pastikan format file valid.',
+        });
       },
     });
   };
@@ -861,8 +941,8 @@ function ImportModal({ onClose, onImported }) {
     if (!file?._parsed) return;
 
     const confirmed = await showConfirm({
-      title:             'Konfirmasi Import',
-      text:              `Yakin ingin mengimport ${file._parsed.length} baris data dari "${file.name}"?`,
+      title: 'Konfirmasi Import',
+      text: `Yakin ingin mengimport ${file._parsed.length} baris data dari "${file.name}"?`,
       confirmButtonText: 'Ya, Import',
       confirmButtonColor: '#14a2ba',
     });
@@ -871,10 +951,10 @@ function ImportModal({ onClose, onImported }) {
     setImporting(true);
     try {
       const token = localStorage.getItem('token');
-      const res   = await fetch(`${API_URL}/import`, {
-        method:  'POST',
+      const res = await fetch(`${API_URL}/import`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ items: file._parsed }),
+        body: JSON.stringify({ items: file._parsed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Gagal import');
@@ -893,12 +973,12 @@ function ImportModal({ onClose, onImported }) {
       // Peringatan tambahan jika ada baris bermasalah
       if (skipped?.length > 0) {
         const detail = skipped.slice(0, 3).map(s => `${s.qr_code}: ${s.message}`).join('\n');
-        const more   = skipped.length > 3 ? `\n...dan ${skipped.length - 3} lainnya` : '';
+        const more = skipped.length > 3 ? `\n...dan ${skipped.length - 3} lainnya` : '';
         showToast.warning(`${skipped.length} baris dilewati:\n${detail}${more}`);
       }
       if (errors?.length > 0) {
         const detail = errors.slice(0, 3).map(e => `Baris ${e.row} (${e.qr_code}): ${e.message}`).join('\n');
-        const more   = errors.length > 3 ? `\n...dan ${errors.length - 3} lainnya` : '';
+        const more = errors.length > 3 ? `\n...dan ${errors.length - 3} lainnya` : '';
         showToast.error(`${errors.length} baris error:\n${detail}${more}`);
       }
     } catch (err) {
@@ -912,7 +992,7 @@ function ImportModal({ onClose, onImported }) {
   const reset = () => {
     setFile(null);
     setPreview([]);
-    setParseError('');
+    setValidationError(null);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -961,7 +1041,7 @@ function ImportModal({ onClose, onImported }) {
                 <HugeiconsIcon icon={FileUploadIcon} size={18} strokeWidth={1.75} className="text-[#14a2ba]" />
                 <div>
                   <p className="text-sm font-semibold text-slate-700">{file.name}</p>
-                  <p className="text-xs text-slate-500">{file._parsed.length} baris data ditemukan</p>
+                  <p className="text-xs text-slate-500">{file._parsed.length} baris data valid</p>
                 </div>
               </div>
               <button type="button" onClick={reset} className="text-xs font-semibold text-slate-400 hover:text-red-500">Ganti</button>
@@ -969,11 +1049,86 @@ function ImportModal({ onClose, onImported }) {
           )}
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
 
-          {/* Parse error */}
-          {parseError && (
-            <div className="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" />
-              {parseError}
+          {/* Validation & Parse Error Detail Box */}
+          {validationError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-700 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <HugeiconsIcon icon={AlertCircleIcon} size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-red-600" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-red-900">{validationError.title}</h4>
+                  <p className="mt-0.5 text-xs text-red-700 leading-relaxed">{validationError.generalMessage}</p>
+                </div>
+              </div>
+
+              {/* Missing & Found Columns breakdown */}
+              {validationError.missingColumns && (
+                <div className="rounded-xl border border-red-200/70 bg-white p-3 text-xs space-y-2 text-slate-700">
+                  <div>
+                    <span className="font-semibold text-red-600">Kolom Wajib yang Hilang:</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {validationError.missingColumns.map((col) => (
+                        <span key={col} className="rounded-md bg-red-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-red-700">
+                          {col}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="font-semibold text-slate-600">Kolom yang Ditemukan di File:</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {validationError.foundColumns.length > 0 ? (
+                        validationError.foundColumns.map((col, idx) => (
+                          <span key={idx} className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-700">
+                            {col || '(kosong)'}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="italic text-slate-400">Tidak ada header terdeteksi</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-1 border-t border-slate-100 text-[11px] text-slate-500">
+                    <span className="font-semibold text-slate-700">Format yang diharapkan: </span>
+                    <span className="font-mono text-emerald-700 font-semibold">nama_barang</span>,{' '}
+                    <span className="font-mono text-emerald-700 font-semibold">qr_code</span>,{' '}
+                    <span className="font-mono text-emerald-700 font-semibold">kategori</span>,{' '}
+                    <span className="font-mono text-slate-600">status (opsional)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Row-level errors list */}
+              {validationError.rowErrors && validationError.rowErrors.length > 0 && (
+                <div className="rounded-xl border border-red-200/70 bg-white p-3 text-xs space-y-1.5">
+                  <span className="font-semibold text-red-700">Daftar Baris Bermasalah:</span>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                    {validationError.rowErrors.slice(0, 8).map((err, i) => (
+                      <div key={i} className="flex items-start gap-1.5 text-slate-700">
+                        <span className="font-semibold font-mono text-[11px] text-red-600 shrink-0">Baris {err.row}:</span>
+                        <span>{err.message}</span>
+                      </div>
+                    ))}
+                    {validationError.rowErrors.length > 8 && (
+                      <p className="text-[11px] italic text-slate-400 pt-1">
+                        ...dan {validationError.rowErrors.length - 8} baris bermasalah lainnya.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#14a2ba] hover:underline"
+                >
+                  <HugeiconsIcon icon={Download01Icon} size={13} strokeWidth={2} />
+                  Download template CSV yang benar
+                </button>
+              </div>
             </div>
           )}
 
@@ -1028,10 +1183,10 @@ function ImportModal({ onClose, onImported }) {
 const SKU_SCANNER_ID = 'sku-scanner-viewport-admin';
 
 function SkuScannerModal({ onClose, onDetected }) {
-  const scannerRef       = useRef(null);
-  const hasDetectedRef   = useRef(false);
-  const [cameraError, setCameraError]       = useState(null);
-  const [torchOn, setTorchOn]               = useState(false);
+  const scannerRef = useRef(null);
+  const hasDetectedRef = useRef(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
@@ -1073,7 +1228,7 @@ function SkuScannerModal({ onClose, onDetected }) {
             hasDetectedRef.current = true;
             onDetected(decodedText);
           },
-          () => {}
+          () => { }
         );
         try {
           const cap = scanner.getRunningTrackCapabilities();
@@ -1090,7 +1245,7 @@ function SkuScannerModal({ onClose, onDetected }) {
       clearTimeout(timer);
       const s = scannerRef.current;
       if (s) {
-        try { if (s.getState() === 2) s.stop().catch(() => {}); } catch { /* no-op */ }
+        try { if (s.getState() === 2) s.stop().catch(() => { }); } catch { /* no-op */ }
       }
     };
   }, [onDetected]);
@@ -1162,11 +1317,11 @@ function BarangFormModal({ item, onClose, onSaved }) {
     kategori: item?.kategori || '',
     status: item?.status || 'tersedia',
   });
-  const [gambarFile, setGambarFile]   = useState(null);
-  const [preview, setPreview]         = useState(item?.gambar || null);
+  const [gambarFile, setGambarFile] = useState(null);
+  const [preview, setPreview] = useState(item?.gambar || null);
   const [removeGambar, setRemoveGambar] = useState(false);
-  const [errors, setErrors]           = useState({});
-  const [saving, setSaving]           = useState(false);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const fileRef = useRef();
 
@@ -1197,8 +1352,8 @@ function BarangFormModal({ item, onClose, onSaved }) {
 
   const validate = () => {
     const errs = {};
-    if (!form.nama.trim())     errs.nama     = 'Nama wajib diisi';
-    if (!form.sku.trim())      errs.sku      = 'SKU wajib diisi';
+    if (!form.nama.trim()) errs.nama = 'Nama wajib diisi';
+    if (!form.sku.trim()) errs.sku = 'SKU wajib diisi';
     if (!form.kategori.trim()) errs.kategori = 'Kategori wajib diisi';
     setErrors(errs);
     return Object.keys(errs).length === 0;

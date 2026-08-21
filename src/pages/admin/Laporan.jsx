@@ -61,11 +61,21 @@ const exportToCsv = (rows) => {
     const csv = [header, ...body]
         .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
         .join('\n');
+    const fileName = `laporan-barang-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    // Android WebView: kirim via interface langsung (blob URL tidak bisa didownload)
+    if (window.Android && typeof window.Android.downloadBase64 === 'function') {
+        const b64 = btoa(unescape(encodeURIComponent('\uFEFF' + csv)));
+        window.Android.downloadBase64('data:text/csv;base64,' + b64, fileName);
+        return;
+    }
+
+    // Fallback: browser normal
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `laporan-barang-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
 };
