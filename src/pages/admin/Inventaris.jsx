@@ -792,6 +792,15 @@ function ImportModal({ onClose, onImported }) {
   const handleDownloadTemplate = () => {
     const rows = [TEMPLATE_HEADERS];
     const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+
+    // Android WebView: kirim via interface langsung (blob URL tidak bisa didownload)
+    if (window.Android && typeof window.Android.downloadBase64 === 'function') {
+      const b64 = btoa(unescape(encodeURIComponent(csv)));
+      window.Android.downloadBase64('data:text/csv;base64,' + b64, 'template_import_barang.csv');
+      return;
+    }
+
+    // Fallback: browser normal
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
